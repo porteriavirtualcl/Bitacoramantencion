@@ -331,7 +331,7 @@ async function startServer() {
           role: user.role, 
           name: user.name, 
           email: user.email,
-          mustChangePassword: !!user.must_change_password 
+          mustChangePassword: user.must_change_password === true || user.must_change_password === 1
         } 
       });
     } catch (err) {
@@ -368,8 +368,8 @@ async function startServer() {
     if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const { name, address, equipmentIds, techId } = req.body;
     try {
-      const [result]: any = await db.execute('INSERT INTO condos (name, address) VALUES (?, ?)', [name, address]);
-      const condoId = result.insertId;
+      const [result]: any = await db.execute('INSERT INTO condos (name, address) VALUES (?, ?) RETURNING id', [name, address]);
+      const condoId = result[0].id;
 
       if (equipmentIds && Array.isArray(equipmentIds)) {
         for (const id of equipmentIds) {
@@ -443,8 +443,8 @@ async function startServer() {
     if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const { name } = req.body;
     try {
-      const [result]: any = await db.execute('INSERT INTO equipment_types (name) VALUES (?)', [name]);
-      res.json({ id: result.insertId, name });
+      const [result]: any = await db.execute('INSERT INTO equipment_types (name) VALUES (?) RETURNING id', [name]);
+      res.json({ id: result[0].id, name });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -475,14 +475,8 @@ async function startServer() {
     const { condoId, logType } = req.body;
     const user = (req as any).user;
     try {
-      const [result]: any = await db.execute('INSERT INTO maintenance_logs (condo_id, tech_id, log_type) VALUES (?, ?, ?)', [condoId, user.id, logType || 'mantenimiento']);
-      
-      // If it's a critical incident (correctiva), notify admins or other relevant people?
-      // Actually, the request says "notificaciones push para los técnicos cuando se les asigne una nueva mantención o exista una incidencia crítica"
-      // If a tech starts a corrective log, maybe it's already known. 
-      // But if an incident is reported (which we don't have a specific "report" route yet, it's usually just starting a log), 
-      // let's assume "incidencia crítica" means a 'correctiva' log is created.
-      if (logType === 'correctiva') {
+      const [result]: any = await db.execute('INSERT INTO maintenance_logs (condo_id, tech_id, log_type) VALUES (?, ?, ?) RETURNING id', [condoId, user.id, logType || 'mantenimiento']);
+      const logId = result[0].id;
         const [condos]: any = await db.execute('SELECT name FROM condos WHERE id = ?', [condoId]);
         const condoName = condos[0]?.name || "Condominio";
         
@@ -646,8 +640,8 @@ async function startServer() {
     const { email, password, name, role } = req.body;
     const hashedPassword = bcrypt.hashSync(password, 10);
     try {
-      const [result]: any = await db.execute('INSERT INTO users (email, password, name, role, must_change_password) VALUES (?, ?, ?, ?, 1)', [email, hashedPassword, name, role]);
-      res.json({ id: result.insertId });
+      const [result]: any = await db.execute('INSERT INTO users (email, password, name, role, must_change_password) VALUES (?, ?, ?, ?, TRUE) RETURNING id', [email, hashedPassword, name, role]);
+      res.json({ id: result[0].id });
     } catch (error: any) {
       res.status(400).json({ error: "El correo electrónico ya está registrado" });
     }
@@ -753,9 +747,10 @@ async function startServer() {
 
     try {
       const [result]: any = await db.execute(
-        'INSERT INTO incidents (condo_id, equipment_type_id, operator_id, description) VALUES (?, ?, ?, ?)',
+        'INSERT INTO incidents (condo_id, equipment_type_id, operator_id, description) VALUES (?, ?, ?, ?) RETURNING id',
         [condoId, equipmentTypeId, user.id, description]
       );
+      const incidentId = result[0].id;
 
       // Notify the technician assigned to this condo
       const [techs]: any = await db.execute(

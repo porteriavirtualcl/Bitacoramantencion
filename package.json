@@ -26,6 +26,7 @@
     "mysql2": "^3.18.2",
     "nodemailer": "^8.0.1",
     "pdfkit": "^0.17.2",
+    "pg": "^8.20.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.13.1",
