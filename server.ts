@@ -282,14 +282,14 @@ async function startServer() {
   const app = express();
   app.use(express.json());
 
-  console.log("Initializing MySQL...");
+  console.log("Initializing PostgreSQL/Supabase...");
   try {
     await initDb();
     console.log("Seeding admin user...");
     await seedAdmin();
     console.log("Admin seeding check complete.");
   } catch (dbErr) {
-    console.error("Database initialization failed. Check your MySQL credentials.", dbErr);
+    console.error("Database initialization failed. Check your Supabase (PostgreSQL) credentials.", dbErr);
   }
 
   app.use((req, res, next) => {

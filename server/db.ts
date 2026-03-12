@@ -10,8 +10,14 @@ const pool = new Pool({
 });
 
 export async function initDb() {
-  if (!process.env.DATABASE_URL) {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
     console.error("❌ Error: Falta la variable de entorno DATABASE_URL para Supabase.");
+    return;
+  }
+
+  if (dbUrl.includes("[YOUR-PASSWORD]") || dbUrl.includes("[TU-PASSWORD]")) {
+    console.error("❌ Error: La DATABASE_URL todavía contiene un marcador de posición ([YOUR-PASSWORD]). Debes reemplazarlo con tu contraseña real en Settings -> Secrets.");
     return;
   }
 
