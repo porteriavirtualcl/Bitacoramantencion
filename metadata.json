@@ -1,0 +1,5 @@
+{
+  "name": "Bitácora Portería Virtual",
+  "description": "Sistema de bitácora de mantenimiento para técnicos de Portería Virtual, con gestión de condominios, equipos configurables y reportes automáticos por correo.",
+  "requestFramePermissions": []
+}
