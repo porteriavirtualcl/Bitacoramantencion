@@ -264,8 +264,8 @@ async function seedAdmin() {
       const hashedPassword = bcrypt.hashSync('admin123', 10);
       await db.execute(`
         INSERT INTO users (email, password, name, role, must_change_password)
-        VALUES (?, ?, ?, ?, ?)
-      `, [email, hashedPassword, 'Administrador', 'admin', 1]);
+        VALUES (?, ?, ?, ?, TRUE)
+      `, [email, hashedPassword, 'Administrador', 'admin']);
       console.log("Default admin user seeded successfully.");
     } else {
       console.log("Updating admin password to admin123...");
@@ -334,8 +334,9 @@ async function startServer() {
           mustChangePassword: user.must_change_password === true || user.must_change_password === 1
         } 
       });
-    } catch (err) {
-      res.status(500).json({ error: "Internal server error" });
+    } catch (err: any) {
+      console.error("Login error:", err);
+      res.status(500).json({ error: "Error interno del servidor: " + err.message });
     }
   });
 
@@ -675,7 +676,7 @@ async function startServer() {
         return res.status(400).json({ error: "La contraseña actual es incorrecta" });
       }
       const hashedPassword = bcrypt.hashSync(newPassword, 10);
-      await db.execute('UPDATE users SET password = ?, must_change_password = 0 WHERE id = ?', [hashedPassword, userId]);
+      await db.execute('UPDATE users SET password = ?, must_change_password = FALSE WHERE id = ?', [hashedPassword, userId]);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
