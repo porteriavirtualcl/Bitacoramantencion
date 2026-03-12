@@ -280,7 +280,7 @@ async function seedAdmin() {
 
     if (users.length === 0) {
       console.log("Seeding default admin user...");
-      const hashedPassword = bcrypt.hashSync('admin123', 10);
+      const hashedPassword = await bcrypt.hash('admin123', 10);
       await db.execute(`
         INSERT INTO users (email, password, name, role, must_change_password)
         VALUES (?, ?, ?, ?, TRUE)
@@ -294,7 +294,15 @@ async function seedAdmin() {
   }
 }
 
-async function startServer() {
+const startServer = async () => {
+  process.on("unhandledRejection", (reason, promise) => {
+    console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  });
+
+  process.on("uncaughtException", (err) => {
+    console.error("Uncaught Exception thrown:", err);
+  });
+
   console.log("Starting server initialization...");
   const app = express();
   app.use(express.json());
@@ -325,6 +333,14 @@ async function startServer() {
     }
   };
 
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      dbConnected: !!process.env.DATABASE_URL
+    });
+  });
+
   app.post("/api/login", async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -335,7 +351,7 @@ async function startServer() {
         return res.status(401).json({ error: "Credenciales inválidas" });
       }
 
-      const isPasswordValid = bcrypt.compareSync(password, user.password);
+      const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         return res.status(401).json({ error: "Credenciales inválidas" });
       }
@@ -745,7 +761,7 @@ async function startServer() {
   app.post("/api/users", authenticate, async (req, res) => {
     if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const { email, password, name, role } = req.body;
-    const hashedPassword = bcrypt.hashSync(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
     try {
       const [result]: any = await db.execute('INSERT INTO users (email, password, name, role, must_change_password) VALUES (?, ?, ?, ?, TRUE) RETURNING id', [email, hashedPassword, name, role]);
       res.json({ id: result[0].id });
@@ -759,7 +775,7 @@ async function startServer() {
     const { email, name, password } = req.body;
     try {
       if (password) {
-        const hashedPassword = bcrypt.hashSync(password, 10);
+        const hashedPassword = await bcrypt.hash(password, 10);
         await db.execute('UPDATE users SET email = ?, name = ?, password = ? WHERE id = ?', [email, name, hashedPassword, req.params.id]);
       } else {
         await db.execute('UPDATE users SET email = ?, name = ? WHERE id = ?', [email, name, req.params.id]);
@@ -776,10 +792,10 @@ async function startServer() {
     try {
       const [users]: any = await db.execute('SELECT * FROM users WHERE id = ?', [userId]);
       const user = users[0];
-      if (currentPassword && !bcrypt.compareSync(currentPassword, user.password)) {
+      if (currentPassword && !(await bcrypt.compare(currentPassword, user.password))) {
         return res.status(400).json({ error: "La contraseña actual es incorrecta" });
       }
-      const hashedPassword = bcrypt.hashSync(newPassword, 10);
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
       await db.execute('UPDATE users SET password = ?, must_change_password = FALSE WHERE id = ?', [hashedPassword, userId]);
       res.json({ success: true });
     } catch (error: any) {
@@ -1017,8 +1033,9 @@ async function startServer() {
     app.use(vite.middlewares);
   }
 
-  app.listen(3000, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:3000`);
+  const PORT = Number(process.env.PORT) || 3000;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 

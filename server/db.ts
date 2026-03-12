@@ -6,15 +6,16 @@ import path from 'path';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
+  ssl: process.env.DATABASE_URL?.includes('supabase') ? {
     rejectUnauthorized: false
-  }
+  } : false
 });
 
 export async function initDb() {
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
-    console.error("❌ Error: Falta la variable de entorno DATABASE_URL para Supabase.");
+    console.error("❌ Error: Falta la variable de entorno DATABASE_URL.");
+    console.error("👉 TIP: Asegúrate de configurar DATABASE_URL en el panel de control de tu hosting (Hostinger, etc.)");
     return;
   }
 
