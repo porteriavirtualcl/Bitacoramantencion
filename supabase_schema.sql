@@ -66,7 +66,8 @@ CREATE TABLE IF NOT EXISTS incidents (
   description TEXT NOT NULL,
   status TEXT DEFAULT 'open',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  resolved_at TIMESTAMP WITH TIME ZONE
+  resolved_at TIMESTAMP WITH TIME ZONE,
+  resolved_by INTEGER REFERENCES users(id)
 );
 
 -- Push subscriptions table

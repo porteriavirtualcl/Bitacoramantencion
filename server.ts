@@ -110,6 +110,9 @@ const generateIncidentPDF = (incident: any): Promise<Buffer> => {
     doc.text(`ID Incidencia:`, { continued: true, bold: true } as any).text(` #INC-${incident.id.toString().padStart(5, '0')}`);
     if (incident.status === 'resolved' && incident.resolved_at) {
       doc.text(`Fecha Cierre:`, { continued: true, bold: true } as any).text(` ${new Date(incident.resolved_at).toLocaleDateString('es-CL')} ${new Date(incident.resolved_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`);
+      if (incident.tech_name) {
+        doc.text(`Cerrado por:`, { continued: true, bold: true } as any).text(` ${incident.tech_name}`);
+      }
     }
 
     doc.moveDown(2);
@@ -198,6 +201,10 @@ const generateLogPDF = (log: any, details: any[]): Promise<Buffer> => {
     doc.fillColor("#111827").fontSize(11).text(`Técnico:`, 320, doc.y, { continued: true, bold: true } as any).font('Helvetica').text(` ${log.tech_name}`);
     doc.text(`Tipo:`, { continued: true, bold: true } as any).text(` ${log.log_type.toUpperCase()}`);
     doc.text(`Fecha:`, { continued: true, bold: true } as any).text(` ${new Date(log.start_time).toLocaleDateString('es-CL')}`);
+    doc.text(`H. Inicio:`, { continued: true, bold: true } as any).text(` ${new Date(log.start_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`);
+    if (log.end_time) {
+      doc.text(`H. Término:`, { continued: true, bold: true } as any).text(` ${new Date(log.end_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`);
+    }
     doc.text(`ID Reporte:`, { continued: true, bold: true } as any).text(` #LOG-${log.id.toString().padStart(5, '0')}`);
 
     doc.moveDown(2);
@@ -257,7 +264,7 @@ const generateLogPDF = (log: any, details: any[]): Promise<Buffer> => {
 async function seedAdmin() {
   try {
     const email = 'contacto@porteriavirtual.cl';
-    const [users]: any = await db.execute('SELECT id FROM users WHERE email = ?', [email]);
+    const [users]: any = await db.execute('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [email]);
 
     if (users.length === 0) {
       console.log("Seeding default admin user...");
@@ -268,9 +275,7 @@ async function seedAdmin() {
       `, [email, hashedPassword, 'Administrador', 'admin']);
       console.log("Default admin user seeded successfully.");
     } else {
-      console.log("Updating admin password to admin123...");
-      const hashedPassword = bcrypt.hashSync('admin123', 10);
-      await db.execute('UPDATE users SET password = ? WHERE email = ?', [hashedPassword, email]);
+      console.log("Admin user already exists. Skipping password reset.");
     }
   } catch (err) {
     console.error("Unexpected error during seeding:", err);
@@ -311,7 +316,7 @@ async function startServer() {
   app.post("/api/login", async (req, res) => {
     const { email, password } = req.body;
     try {
-      const [users]: any = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
+      const [users]: any = await db.execute('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [email]);
       const user = users[0];
 
       if (!user) {
@@ -880,22 +885,24 @@ async function startServer() {
   app.put("/api/incidents/:id/status", authenticate, async (req, res) => {
     const { status } = req.body;
     const incidentId = req.params.id;
+    const user = (req as any).user;
     try {
       if (status === 'resolved') {
-        await db.execute('UPDATE incidents SET status = ?, resolved_at = CURRENT_TIMESTAMP WHERE id = ?', [status, incidentId]);
+        await db.execute('UPDATE incidents SET status = ?, resolved_at = CURRENT_TIMESTAMP, resolved_by = ? WHERE id = ?', [status, user.id, incidentId]);
         
         // Notify operator that incident is resolved
         const [incidents]: any = await db.execute(`
-          SELECT i.*, et.name as equipment_name 
+          SELECT i.*, et.name as equipment_name, u.name as tech_name 
           FROM incidents i 
           JOIN equipment et ON i.equipment_id = et.id 
+          LEFT JOIN users u ON i.resolved_by = u.id
           WHERE i.id = ?
         `, [incidentId]);
         
         if (incidents[0]) {
           sendPushNotification(incidents[0].operator_id, {
             title: "Incidencia Resuelta",
-            body: `El problema con ${incidents[0].equipment_name} ha sido solucionado.`,
+            body: `El problema con ${incidents[0].equipment_name} ha sido solucionado por ${incidents[0].tech_name || 'un técnico'}.`,
             url: "/operator/history"
           });
         }
@@ -911,11 +918,12 @@ async function startServer() {
   app.get("/api/incidents/:id/pdf", authenticate, async (req, res) => {
     try {
       const [incidents]: any = await db.execute(`
-        SELECT i.*, c.name as condo_name, et.name as equipment_name, u.name as operator_name
+        SELECT i.*, c.name as condo_name, et.name as equipment_name, u.name as operator_name, t.name as tech_name
         FROM incidents i
         JOIN condos c ON i.condo_id = c.id
         JOIN equipment et ON i.equipment_id = et.id
         JOIN users u ON i.operator_id = u.id
+        LEFT JOIN users t ON i.resolved_by = t.id
         WHERE i.id = ?
       `, [req.params.id]);
       

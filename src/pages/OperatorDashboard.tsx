@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Building2, AlertTriangle, ChevronRight, Plus, Clock, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Building2, AlertTriangle, ChevronRight, Plus, Clock, CheckCircle2, RefreshCw, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -77,12 +77,21 @@ export default function OperatorDashboard() {
                       <p className="text-xs text-slate-500">{incident.condo_name} • Reportado hace {Math.round((new Date().getTime() - new Date(incident.created_at).getTime()) / (1000 * 60))} min</p>
                     </div>
                   </div>
-                  <Link 
-                    to="/operator/history"
-                    className="text-xs font-bold text-red-600 hover:underline flex items-center gap-1"
-                  >
-                    Ver detalle <ChevronRight size={14} />
-                  </Link>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => window.open(api.getIncidentPdfUrl(incident.id), '_blank')}
+                        className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
+                        title="Descargar PDF"
+                      >
+                        <FileText size={18} />
+                      </button>
+                      <Link 
+                        to="/operator/history"
+                        className="text-xs font-bold text-red-600 hover:underline flex items-center gap-1"
+                      >
+                        Ver detalle <ChevronRight size={14} />
+                      </Link>
+                    </div>
                 </div>
               ))}
             </div>

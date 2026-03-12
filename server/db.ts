@@ -43,7 +43,8 @@ export async function initDb() {
         "ALTER TABLE IF EXISTS equipment_types RENAME TO equipment",
         "ALTER TABLE IF EXISTS log_details RENAME COLUMN equipment_type_id TO equipment_id",
         "ALTER TABLE IF EXISTS incidents RENAME COLUMN equipment_type_id TO equipment_id",
-        "ALTER TABLE IF EXISTS condo_equipment RENAME COLUMN equipment_type_id TO equipment_id"
+        "ALTER TABLE IF EXISTS condo_equipment RENAME COLUMN equipment_type_id TO equipment_id",
+        "ALTER TABLE IF EXISTS incidents ADD COLUMN IF NOT EXISTS resolved_by INTEGER REFERENCES users(id)"
       ];
 
       for (const migration of migrations) {
