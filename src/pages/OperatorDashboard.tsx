@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Building2, AlertTriangle, ChevronRight, Plus, Clock, CheckCircle2, RefreshCw, FileText } from 'lucide-react';
+import { Building2, AlertTriangle, ChevronRight, Plus, Clock, CheckCircle2, RefreshCw, FileText, User, Users, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -122,6 +122,21 @@ export default function OperatorDashboard() {
               
               <h3 className="text-lg font-bold text-slate-800 mb-4">{condo.name}</h3>
               
+              <div className="flex items-center gap-4 mb-6 pt-4 border-t border-slate-50">
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <User size={14} className="text-blue-500" />
+                  <span className="text-xs font-bold">{condo.tech_count || 0}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <Users size={14} className="text-purple-500" />
+                  <span className="text-xs font-bold">{condo.operator_count || 0}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <Settings size={14} className="text-slate-400" />
+                  <span className="text-xs font-bold">{condo.equipment_count || 0}</span>
+                </div>
+              </div>
+
               <Link 
                 to={`/operator/report/${condo.id}`}
                 className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-primary transition-colors"

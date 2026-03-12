@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Search, ArrowRight, Loader2, PlusCircle, Clock, Pause, AlertTriangle } from 'lucide-react';
+import { Building2, Search, ArrowRight, Loader2, PlusCircle, Clock, Pause, AlertTriangle, User, Users, Settings } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../api';
 import { clsx } from 'clsx';
@@ -251,8 +251,23 @@ export default function TechDashboard() {
                 </div>
               </div>
               <h3 className="text-base md:text-lg font-bold text-slate-900 mb-1 leading-tight">{condo.name}</h3>
-              <p className="text-xs md:text-sm text-slate-500 mb-4 md:mb-6 line-clamp-1">{condo.address}</p>
+              <p className="text-xs md:text-sm text-slate-500 mb-4 line-clamp-1">{condo.address}</p>
               
+              <div className="flex items-center gap-4 mb-6 pt-4 border-t border-slate-50">
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <User size={14} className="text-blue-500" />
+                  <span className="text-xs font-bold">{condo.tech_count || 0}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <Users size={14} className="text-purple-500" />
+                  <span className="text-xs font-bold">{condo.operator_count || 0}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <Settings size={14} className="text-slate-400" />
+                  <span className="text-xs font-bold">{condo.equipment_count || 0}</span>
+                </div>
+              </div>
+
               <button 
                 onClick={() => handleStartMaintenance(condo.id)}
                 disabled={starting !== null}

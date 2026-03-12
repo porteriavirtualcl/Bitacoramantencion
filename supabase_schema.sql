@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS incidents (
   equipment_id INTEGER NOT NULL REFERENCES equipment(id),
   operator_id INTEGER NOT NULL REFERENCES users(id),
   description TEXT NOT NULL,
-  status TEXT DEFAULT 'open',
+  priority TEXT NOT NULL DEFAULT 'Media',
+  status TEXT DEFAULT 'in_process',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   resolved_at TIMESTAMP WITH TIME ZONE,
   resolved_by INTEGER REFERENCES users(id)

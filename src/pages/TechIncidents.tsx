@@ -9,7 +9,7 @@ export default function TechIncidents() {
   const [incidents, setIncidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pending' | 'resolved'>('pending');
+  const [closingId, setClosingId] = useState<number | null>(null);
 
   useEffect(() => {
     loadIncidents();
@@ -28,22 +28,23 @@ export default function TechIncidents() {
     }
   };
 
-  const handleResolve = async (id: number) => {
-    if (!confirm('¿Marcar esta incidencia como resuelta?')) return;
-    
+  const handleStatusUpdate = async (id: number, status: 'resolved' | 'pending') => {
     // Optimistic update
-    setIncidents(prev => prev.map(i => i.id === id ? { ...i, status: 'resolved', resolved_at: new Date().toISOString() } : i));
+    if (status === 'resolved') {
+      setIncidents(prev => prev.filter(i => i.id !== id));
+    } else {
+      setIncidents(prev => prev.map(i => i.id === id ? { ...i, status: 'pending' } : i));
+    }
     
+    setClosingId(null);
+
     try {
-      await api.updateIncidentStatus(id, 'resolved');
-      // No need to reload everything if we updated it locally, 
-      // but we can still do it to ensure sync with server
+      await api.updateIncidentStatus(id, status);
       loadIncidents();
     } catch (error) {
-      console.error('Error resolving incident:', error);
-      // Rollback on error
+      console.error('Error updating incident status:', error);
       loadIncidents();
-      alert('Error al resolver la incidencia');
+      alert('Error al actualizar el estado de la incidencia');
     }
   };
 
@@ -51,14 +52,9 @@ export default function TechIncidents() {
     window.open(api.getIncidentPdfUrl(id), '_blank');
   };
 
-  const filteredIncidents = incidents
-    .filter(i => i.status === activeTab)
-    .sort((a, b) => {
-      if (activeTab === 'pending') {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+  const activeIncidents = incidents
+    .filter(i => i.status === 'in_process' || i.status === 'pending')
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   if (loading) return <div className="flex justify-center p-12">Cargando...</div>;
 
@@ -67,8 +63,8 @@ export default function TechIncidents() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-2xl font-black text-slate-800">Incidencias Reportadas</h1>
-            <p className="text-slate-500">Problemas detectados por los operadores en tus condominios</p>
+            <h1 className="text-2xl font-black text-slate-800">Incidencias Pendientes</h1>
+            <p className="text-slate-500">Problemas detectados que requieren tu atención inmediata</p>
           </div>
           <button
             onClick={() => loadIncidents(true)}
@@ -80,61 +76,50 @@ export default function TechIncidents() {
           </button>
         </div>
 
-        <div className="flex bg-slate-100 p-1 rounded-xl self-start">
-          <button
-            onClick={() => setActiveTab('pending')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeTab === 'pending' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Pendientes ({incidents.filter(i => i.status === 'pending').length})
-          </button>
-          <button
-            onClick={() => setActiveTab('resolved')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeTab === 'resolved' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Resueltas ({incidents.filter(i => i.status === 'resolved').length})
-          </button>
+        <div className="bg-blue-50 px-4 py-2 rounded-xl border border-blue-100">
+          <span className="text-blue-600 font-bold text-sm">
+            {activeIncidents.length} {activeIncidents.length === 1 ? 'incidencia activa' : 'incidencias activas'}
+          </span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
         <AnimatePresence mode="popLayout">
-          {filteredIncidents.map((incident) => (
+          {activeIncidents.map((incident) => (
             <motion.div
               layout
               key={incident.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className={`bg-white rounded-2xl p-6 border-l-4 shadow-sm ${
-                incident.status === 'pending' ? 'border-l-red-500' : 'border-l-green-500'
-              } border-y border-r border-slate-200`}
+              className={`bg-white rounded-2xl p-6 border-l-4 ${
+                incident.status === 'in_process' ? 'border-l-blue-500' : 'border-l-orange-500'
+              } border-y border-r border-slate-200 shadow-sm`}
             >
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-3 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
-                      incident.status === 'pending' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                      incident.status === 'in_process' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
                     }`}>
-                      {incident.status === 'pending' ? 'Pendiente' : 'Resuelto'}
+                      {incident.status === 'in_process' ? 'En Proceso' : 'Pendiente'}
+                    </span>
+                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      incident.priority === 'Crítica' ? 'bg-red-600 text-white' :
+                      incident.priority === 'Alta' ? 'bg-orange-100 text-orange-600' :
+                      incident.priority === 'Media' ? 'bg-blue-100 text-blue-600' :
+                      'bg-slate-100 text-slate-600'
+                    }`}>
+                      {incident.priority || 'Media'}
                     </span>
                     <span className="text-xs text-slate-400 flex items-center gap-1">
                       <Clock size={12} />
                       Reportado: {format(new Date(incident.created_at), "d 'de' MMMM, HH:mm", { locale: es })}
                     </span>
-                    {incident.resolved_at && (
-                      <span className="text-xs text-green-600 flex items-center gap-1 font-medium">
-                        <CheckCircle2 size={12} />
-                        Resuelto: {format(new Date(incident.resolved_at), "d 'de' MMMM, HH:mm", { locale: es })}
-                      </span>
-                    )}
                   </div>
 
                   <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <AlertTriangle size={20} className={incident.status === 'pending' ? 'text-red-500' : 'text-slate-300'} />
+                    <AlertTriangle size={20} className={incident.status === 'in_process' ? 'text-blue-500' : 'text-orange-500'} />
                     {incident.equipment_name}
                   </h3>
 
@@ -164,27 +149,51 @@ export default function TechIncidents() {
                     Descargar PDF
                   </button>
 
-                  {incident.status === 'pending' && (
-                    <button
-                      onClick={() => handleResolve(incident.id)}
-                      className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-green-600 transition-all shadow-lg shadow-slate-900/10"
-                    >
-                      <CheckCircle2 size={18} />
-                      Marcar como Resuelto
-                    </button>
-                  )}
+                  <div className="flex flex-col gap-2">
+                    {closingId === incident.id ? (
+                      <div className="flex flex-col gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase text-center mb-1">Cerrar como:</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleStatusUpdate(incident.id, 'resolved')}
+                            className="flex-1 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-all"
+                          >
+                            Resuelta
+                          </button>
+                          <button
+                            onClick={() => handleStatusUpdate(incident.id, 'pending')}
+                            className="flex-1 py-2 bg-orange-500 text-white rounded-lg text-xs font-bold hover:bg-orange-600 transition-all"
+                          >
+                            Pendiente
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => setClosingId(null)}
+                          className="w-full py-1 text-[10px] text-slate-400 hover:text-slate-600 font-bold"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setClosingId(incident.id)}
+                        className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
+                      >
+                        <CheckCircle2 size={18} />
+                        Cerrar Incidencia
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>
           ))}
         </AnimatePresence>
 
-        {filteredIncidents.length === 0 && (
+        {activeIncidents.length === 0 && (
           <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
             <CheckCircle2 className="mx-auto text-slate-300 mb-4" size={48} />
-            <p className="text-slate-500 font-medium">
-              {activeTab === 'pending' ? 'No hay incidencias pendientes' : 'No hay incidencias resueltas'}
-            </p>
+            <p className="text-slate-500 font-medium">No hay incidencias activas</p>
           </div>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Building2, Plus, Search, X, Check, Loader2, Trash2, Edit2, User, Settings } from 'lucide-react';
+import { Building2, Plus, Search, X, Check, Loader2, Trash2, Edit2, User, Settings, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 
@@ -10,7 +10,7 @@ export default function AdminCondos() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCondo, setEditingCondo] = useState<any>(null);
-  const [newCondo, setNewCondo] = useState({ name: '', address: '', equipmentIds: [] as number[], techId: '' });
+  const [newCondo, setNewCondo] = useState({ name: '', address: '', equipmentIds: [] as number[], userIds: [] as number[] });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function AdminCondos() {
         name: condo.name,
         address: condo.address,
         equipmentIds: equip.map((e: any) => e.id),
-        techId: condo.tech_id ? condo.tech_id.toString() : ''
+        userIds: Array.isArray(condo.user_ids) ? condo.user_ids : []
       });
       setIsModalOpen(true);
     } catch (err) {
@@ -63,6 +63,15 @@ export default function AdminCondos() {
     }));
   };
 
+  const handleToggleUser = (id: number) => {
+    setNewCondo(prev => ({
+      ...prev,
+      userIds: prev.userIds.includes(id) 
+        ? prev.userIds.filter(uid => uid !== id)
+        : [...prev.userIds, id]
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -74,7 +83,7 @@ export default function AdminCondos() {
       }
       await loadData();
       setIsModalOpen(false);
-      setNewCondo({ name: '', address: '', equipmentIds: [], techId: '' });
+      setNewCondo({ name: '', address: '', equipmentIds: [], userIds: [] });
       setEditingCondo(null);
     } catch (err) {
       alert('Error al guardar condominio');
@@ -98,7 +107,7 @@ export default function AdminCondos() {
           <p className="text-sm text-slate-500">Administra los edificios y sus equipos configurados.</p>
         </div>
         <button 
-          onClick={() => { setEditingCondo(null); setNewCondo({ name: '', address: '', equipmentIds: [], techId: '' }); setIsModalOpen(true); }}
+          onClick={() => { setEditingCondo(null); setNewCondo({ name: '', address: '', equipmentIds: [], userIds: [] }); setIsModalOpen(true); }}
           className="btn-primary flex items-center justify-center gap-2 w-full md:w-auto"
         >
           <Plus size={20} />
@@ -152,29 +161,31 @@ export default function AdminCondos() {
                 <p className="text-xs md:text-sm text-slate-500 line-clamp-1">{condo.address}</p>
               </div>
 
-              <div className="pt-3 md:pt-4 border-t border-slate-100 flex items-center justify-between">
-                {condo.tech_name ? (
+              <div className="pt-3 md:pt-4 border-t border-slate-100 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
+                    <div className="w-7 h-7 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
                       <User size={14} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Técnico</p>
-                      <p className="text-xs font-bold text-slate-700">{condo.tech_name}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Técnicos</p>
+                      <p className="text-xs font-bold text-slate-700">{condo.tech_count || 0}</p>
                     </div>
                   </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-slate-400 italic text-xs">
-                    <User size={14} />
-                    <span>Sin técnico asignado</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center">
+                      <Users size={14} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Operadores</p>
+                      <p className="text-xs font-bold text-slate-700">{condo.operator_count || 0}</p>
+                    </div>
                   </div>
-                )}
+                </div>
                 
-                <div className="flex -space-x-2">
-                  <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                    <Settings className="w-3 h-3" />
-                    <span>{condo.equipment_count || 0} Equipos</span>
-                  </div>
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider w-fit">
+                  <Settings className="w-3 h-3" />
+                  <span>{condo.equipment_count || 0} Equipos</span>
                 </div>
               </div>
             </div>
@@ -200,18 +211,29 @@ export default function AdminCondos() {
                   <label className="text-sm font-medium text-slate-700">Dirección</label>
                   <input type="text" required className="input-field py-3" placeholder="Calle, Número, Comuna" value={newCondo.address} onChange={e => setNewCondo({...newCondo, address: e.target.value})} />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Técnico Asignado</label>
-                  <select 
-                    className="input-field py-3"
-                    value={newCondo.techId}
-                    onChange={e => setNewCondo({...newCondo, techId: e.target.value})}
-                  >
-                    <option value="">Seleccionar técnico...</option>
-                    {techs.map(tech => (
-                      <option key={`tech-opt-${tech.id}`} value={tech.id}>{tech.name}</option>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-slate-700">Personal Asignado</label>
+                    <span className="text-[10px] text-slate-400 font-medium">Técnicos y Operadores</span>
+                  </div>
+                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
+                    {techs.map(user => (
+                      <button 
+                        key={`user-btn-${user.id}`} 
+                        type="button" 
+                        onClick={() => handleToggleUser(user.id)} 
+                        className={`flex items-center gap-2 p-3 rounded-xl border text-left text-sm transition-all ${newCondo.userIds.includes(user.id) ? 'bg-primary/5 border-primary text-primary' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                      >
+                        <div className={`w-5 h-5 rounded flex items-center justify-center border shrink-0 ${newCondo.userIds.includes(user.id) ? 'bg-primary border-primary text-white' : 'border-slate-300'}`}>
+                          {newCondo.userIds.includes(user.id) && <Check size={14} />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold truncate">{user.name}</p>
+                          <p className="text-[10px] opacity-70 uppercase">{user.role === 'tech' ? 'Técnico' : 'Operador'}</p>
+                        </div>
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">

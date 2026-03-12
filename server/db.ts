@@ -44,7 +44,10 @@ export async function initDb() {
         "ALTER TABLE IF EXISTS log_details RENAME COLUMN equipment_type_id TO equipment_id",
         "ALTER TABLE IF EXISTS incidents RENAME COLUMN equipment_type_id TO equipment_id",
         "ALTER TABLE IF EXISTS condo_equipment RENAME COLUMN equipment_type_id TO equipment_id",
-        "ALTER TABLE IF EXISTS incidents ADD COLUMN IF NOT EXISTS resolved_by INTEGER REFERENCES users(id)"
+        "ALTER TABLE IF EXISTS incidents ADD COLUMN IF NOT EXISTS resolved_by INTEGER REFERENCES users(id)",
+        "ALTER TABLE IF EXISTS incidents ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'Media'",
+        "UPDATE incidents SET status = 'in_process' WHERE status = 'open' OR status = 'pending'",
+        "ALTER TABLE IF EXISTS incidents ALTER COLUMN status SET DEFAULT 'in_process'"
       ];
 
       for (const migration of migrations) {

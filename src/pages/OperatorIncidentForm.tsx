@@ -15,7 +15,8 @@ export default function OperatorIncidentForm() {
 
   const [formData, setFormData] = useState({
     equipmentId: '',
-    description: ''
+    description: '',
+    priority: 'Media'
   });
 
   useEffect(() => {
@@ -46,7 +47,8 @@ export default function OperatorIncidentForm() {
       await api.reportIncident({
         condoId: Number(condoId),
         equipmentId: Number(formData.equipmentId),
-        description: formData.description
+        description: formData.description,
+        priority: formData.priority
       });
       setSuccess(true);
       setTimeout(() => navigate('/operator'), 2000);
@@ -119,6 +121,28 @@ export default function OperatorIncidentForm() {
                 <option key={e.id} value={e.id}>{e.name}</option>
               ))}
             </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider">
+              Prioridad
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {['Baja', 'Media', 'Alta', 'Crítica'].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, priority: p })}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
+                    formData.priority === p 
+                      ? 'bg-primary border-primary text-white shadow-md' 
+                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-2">

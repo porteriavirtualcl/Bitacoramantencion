@@ -59,205 +59,217 @@ const sendPushNotification = async (userId: number, payload: any) => {
 };
 
 const generateIncidentPDF = (incident: any): Promise<Buffer> => {
-  return new Promise((resolve) => {
-    const doc = new PDFDocument({ 
-      margin: 50,
-      size: 'A4',
-      info: {
-        Title: `Reporte de Incidencia - ${incident.condo_name}`,
-        Author: 'Portería Virtual',
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ 
+        margin: 50,
+        size: 'A4',
+        info: {
+          Title: `Reporte de Incidencia - ${incident.condo_name}`,
+          Author: 'Portería Virtual',
+        }
+      });
+      const chunks: Buffer[] = [];
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", (err) => reject(err));
+
+      // --- Header ---
+      const logoX = 50;
+      const logoY = 45;
+      const logoSize = 50;
+      const cyan = "#00AEEF";
+      const gray = "#808285";
+
+      doc.lineWidth(3).strokeColor(cyan);
+      doc.moveTo(logoX, logoY + 12).lineTo(logoX, logoY).lineTo(logoX + 12, logoY).stroke();
+      doc.moveTo(logoX + logoSize - 12, logoY).lineTo(logoX + logoSize, logoY).lineTo(logoX + logoSize, logoY + 12).stroke();
+      doc.moveTo(logoX + logoSize, logoY + logoSize - 12).lineTo(logoX + logoSize, logoY + logoSize).lineTo(logoX + logoSize - 12, logoY + logoSize).stroke();
+      doc.moveTo(logoX + 12, logoY + logoSize).lineTo(logoX, logoY + logoSize).lineTo(logoX, logoY + logoSize - 12).stroke();
+
+      doc.fillColor(gray).fontSize(18).font('Helvetica-Bold').text("portería ", 110, 55, { continued: true })
+         .fillColor(cyan).text("virtual");
+      doc.font('Helvetica').fillColor("#666666").fontSize(10).text("Control de Acceso", 110, 75);
+      doc.fillColor("#666666").fontSize(10).text("contacto@porteriavirtual.cl | www.porteriavirtual.cl", 110, 88);
+
+      doc.moveDown(2);
+      doc.rect(50, 110, 495, 30).fill("#FEF2F2");
+      doc.fillColor("#991B1B").fontSize(14).font('Helvetica-Bold').text("REPORTE DE INCIDENCIA DETECTADA", 50, 118, { align: "center" });
+
+      doc.moveDown(3);
+      const startY = 160;
+      
+      doc.font('Helvetica-Bold').fillColor("#374151").fontSize(10).text("DATOS DEL CONDOMINIO", 50, startY, { underline: true });
+      doc.moveDown(0.5);
+      doc.font('Helvetica-Bold').fillColor("#111827").fontSize(11).text(`Condominio:`, { continued: true }).font('Helvetica').text(` ${incident.condo_name || 'N/A'}`);
+      doc.font('Helvetica-Bold').text(`Ubicación:`, { continued: true }).font('Helvetica').text(` Región Metropolitana, Chile`);
+      
+      doc.font('Helvetica-Bold').fillColor("#374151").fontSize(10).text("DATOS DEL REPORTE", 320, startY, { underline: true });
+      doc.moveDown(0.5);
+      doc.font('Helvetica-Bold').fillColor("#111827").fontSize(11).text(`Operador:`, 320, doc.y, { continued: true }).font('Helvetica').text(` ${incident.operator_name || 'N/A'}`);
+      doc.font('Helvetica-Bold').text(`Fecha:`, { continued: true }).font('Helvetica').text(` ${new Date(incident.created_at).toLocaleDateString('es-CL')}`);
+      doc.font('Helvetica-Bold').text(`Hora:`, { continued: true }).font('Helvetica').text(` ${new Date(incident.created_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`);
+      doc.font('Helvetica-Bold').text(`ID Incidencia:`, { continued: true }).font('Helvetica').text(` #INC-${incident.id.toString().padStart(5, '0')}`);
+      doc.font('Helvetica-Bold').text(`Prioridad:`, { continued: true }).font('Helvetica').text(` ${incident.priority || 'Media'}`);
+      
+      if (incident.status === 'resolved' && incident.resolved_at) {
+        doc.font('Helvetica-Bold').text(`Fecha Cierre:`, { continued: true }).font('Helvetica').text(` ${new Date(incident.resolved_at).toLocaleDateString('es-CL')} ${new Date(incident.resolved_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`);
+        if (incident.tech_name) {
+          doc.font('Helvetica-Bold').text(`Cerrado por:`, { continued: true }).font('Helvetica').text(` ${incident.tech_name}`);
+        }
       }
-    });
-    const chunks: Buffer[] = [];
-    doc.on("data", (chunk) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
 
-    // --- Header ---
-    const logoX = 50;
-    const logoY = 45;
-    const logoSize = 50;
-    const cyan = "#00AEEF";
-    const gray = "#808285";
+      doc.moveDown(2);
+      doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown(1.5);
 
-    doc.lineWidth(3).strokeColor(cyan);
-    doc.moveTo(logoX, logoY + 12).lineTo(logoX, logoY).lineTo(logoX + 12, logoY).stroke();
-    doc.moveTo(logoX + logoSize - 12, logoY).lineTo(logoX + logoSize, logoY).lineTo(logoX + logoSize, logoY + 12).stroke();
-    doc.moveTo(logoX + logoSize, logoY + logoSize - 12).lineTo(logoX + logoSize, logoY + logoSize).lineTo(logoX + logoSize - 12, logoY + logoSize).stroke();
-    doc.moveTo(logoX + 12, logoY + logoSize).lineTo(logoX, logoY + logoSize).lineTo(logoX, logoY + logoSize - 12).stroke();
+      doc.font('Helvetica-Bold').fillColor("#991B1B").fontSize(12).text("DETALLE DEL PROBLEMA");
+      doc.moveDown();
 
-    doc.fillColor(gray).fontSize(18).text("portería ", 110, 55, { continued: true, bold: true } as any)
-       .fillColor(cyan).text("virtual");
-    doc.fillColor("#666666").fontSize(10).text("Control de Acceso", 110, 75);
-    doc.fillColor("#666666").fontSize(10).text("contacto@porteriavirtual.cl | www.porteriavirtual.cl", 110, 88);
+      doc.font('Helvetica-Bold').fillColor("#374151").fontSize(10).text("EQUIPO AFECTADO:");
+      doc.font('Helvetica').fillColor("#111827").fontSize(11).text(incident.equipment_name || 'N/A');
+      doc.moveDown();
 
-    doc.moveDown(2);
-    doc.rect(50, 110, 495, 30).fill("#FEF2F2");
-    doc.fillColor("#991B1B").fontSize(14).text("REPORTE DE INCIDENCIA DETECTADA", 50, 118, { align: "center", bold: true } as any);
+      doc.font('Helvetica-Bold').fillColor("#374151").fontSize(10).text("DESCRIPCIÓN DE LA INCIDENCIA:");
+      doc.rect(50, doc.y + 5, 495, 100).fill("#F9FAFB");
+      doc.font('Helvetica').fillColor("#111827").fontSize(11).text(incident.description || 'Sin descripción', 60, doc.y + 15, { width: 475 });
 
-    doc.moveDown(3);
-    const startY = 160;
-    
-    doc.fillColor("#374151").fontSize(10).text("DATOS DEL CONDOMINIO", 50, startY, { underline: true, bold: true } as any);
-    doc.moveDown(0.5);
-    doc.fillColor("#111827").fontSize(11).text(`Condominio:`, { continued: true, bold: true } as any).font('Helvetica').text(` ${incident.condo_name}`);
-    doc.text(`Ubicación:`, { continued: true, bold: true } as any).text(` Región Metropolitana, Chile`);
-    
-    doc.fillColor("#374151").fontSize(10).text("DATOS DEL REPORTE", 320, startY, { underline: true, bold: true } as any);
-    doc.moveDown(0.5);
-    doc.fillColor("#111827").fontSize(11).text(`Operador:`, 320, doc.y, { continued: true, bold: true } as any).font('Helvetica').text(` ${incident.operator_name}`);
-    doc.text(`Fecha:`, { continued: true, bold: true } as any).text(` ${new Date(incident.created_at).toLocaleDateString('es-CL')}`);
-    doc.text(`Hora:`, { continued: true, bold: true } as any).text(` ${new Date(incident.created_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`);
-    doc.text(`ID Incidencia:`, { continued: true, bold: true } as any).text(` #INC-${incident.id.toString().padStart(5, '0')}`);
-    if (incident.status === 'resolved' && incident.resolved_at) {
-      doc.text(`Fecha Cierre:`, { continued: true, bold: true } as any).text(` ${new Date(incident.resolved_at).toLocaleDateString('es-CL')} ${new Date(incident.resolved_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`);
-      if (incident.tech_name) {
-        doc.text(`Cerrado por:`, { continued: true, bold: true } as any).text(` ${incident.tech_name}`);
-      }
+      doc.moveDown(8);
+      doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown();
+      doc.font('Helvetica').fillColor("#6B7280").fontSize(9).text("Este reporte ha sido generado automáticamente por el sistema de Portería Virtual tras la detección de una anomalía por parte del personal de operación.", { align: "center" });
+
+      doc.end();
+    } catch (err) {
+      reject(err);
     }
-
-    doc.moveDown(2);
-    doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-    doc.moveDown(1.5);
-
-    doc.fillColor("#991B1B").fontSize(12).text("DETALLE DEL PROBLEMA", { bold: true } as any);
-    doc.moveDown();
-
-    doc.fillColor("#374151").fontSize(10).text("EQUIPO AFECTADO:", { bold: true } as any);
-    doc.fillColor("#111827").fontSize(11).text(incident.equipment_name);
-    doc.moveDown();
-
-    doc.fillColor("#374151").fontSize(10).text("DESCRIPCIÓN DE LA INCIDENCIA:", { bold: true } as any);
-    doc.rect(50, doc.y + 5, 495, 100).fill("#F9FAFB");
-    doc.fillColor("#111827").fontSize(11).text(incident.description, 60, doc.y + 15, { width: 475 });
-
-    doc.moveDown(8);
-    doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-    doc.moveDown();
-    doc.fillColor("#6B7280").fontSize(9).text("Este reporte ha sido generado automáticamente por el sistema de Portería Virtual tras la detección de una anomalía por parte del personal de operación.", { align: "center" });
-
-    doc.end();
   });
 };
 
 // Reusable PDF Generation Function
 const generateLogPDF = (log: any, details: any[]): Promise<Buffer> => {
-  return new Promise((resolve) => {
-    const doc = new PDFDocument({ 
-      margin: 50,
-      size: 'A4',
-      info: {
-        Title: `Reporte de Mantención - ${log.condo_name}`,
-        Author: 'Portería Virtual',
-      }
-    });
-    const chunks: Buffer[] = [];
-    doc.on("data", (chunk) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-
-    // --- Header ---
-    const logoX = 50;
-    const logoY = 45;
-    const logoSize = 50;
-    const cornerSize = 12;
-    const cyan = "#00AEEF";
-    const gray = "#808285";
-
-    doc.lineWidth(3).strokeColor(cyan);
-    doc.moveTo(logoX, logoY + cornerSize).lineTo(logoX, logoY).lineTo(logoX + cornerSize, logoY).stroke();
-    doc.moveTo(logoX + logoSize - cornerSize, logoY).lineTo(logoX + logoSize, logoY).lineTo(logoX + logoSize, logoY + cornerSize).stroke();
-    doc.moveTo(logoX + logoSize, logoY + logoSize - cornerSize).lineTo(logoX + logoSize, logoY + logoSize).lineTo(logoX + logoSize - cornerSize, logoY + logoSize).stroke();
-    doc.moveTo(logoX + cornerSize, logoY + logoSize).lineTo(logoX, logoY + logoSize).lineTo(logoX, logoY + logoSize - cornerSize).stroke();
-
-    doc.lineWidth(2).strokeColor(gray);
-    doc.moveTo(logoX + 13, logoY + 28)
-       .bezierCurveTo(logoX + 13, logoY + 15, logoX + 37, logoY + 15, logoX + 37, logoY + 28)
-       .stroke();
-    doc.rect(logoX + 10, logoY + 25, 4, 8).fill(gray);
-    doc.rect(logoX + 36, logoY + 25, 4, 8).fill(gray);
-    doc.lineWidth(1).strokeColor(gray).moveTo(logoX + 14, logoY + 33).quadraticCurveTo(logoX + 18, logoY + 38, logoX + 25, logoY + 38).stroke();
-    
-    doc.fillColor(gray).fontSize(18).text("portería ", 110, 55, { continued: true, bold: true } as any)
-       .fillColor(cyan).text("virtual");
-    doc.fillColor("#666666").fontSize(10).text("Control de Acceso", 110, 75);
-    doc.fillColor("#666666").fontSize(10).text("contacto@porteriavirtual.cl | www.porteriavirtual.cl", 110, 88);
-
-    doc.moveDown(2);
-    doc.rect(50, 110, 495, 30).fill("#F3F4F6");
-    const title = log.log_type === 'mantenimiento' 
-      ? "REPORTE TÉCNICO DE MANTENCIÓN PREVENTIVA" 
-      : "REPORTE TÉCNICO DE MANTENCIÓN CORRECTIVA";
-    doc.fillColor("#111827").fontSize(14).text(title, 50, 118, { align: "center", bold: true } as any);
-
-    doc.moveDown(3);
-    const startY = 160;
-    
-    doc.fillColor("#374151").fontSize(10).text("DATOS DEL CLIENTE", 50, startY, { underline: true, bold: true } as any);
-    doc.moveDown(0.5);
-    doc.fillColor("#111827").fontSize(11).text(`Condominio:`, { continued: true, bold: true } as any).font('Helvetica').text(` ${log.condo_name}`);
-    doc.text(`Ubicación:`, { continued: true, bold: true } as any).text(` Región Metropolitana, Chile`);
-    
-    doc.fillColor("#374151").fontSize(10).text("DATOS DEL SERVICIO", 320, startY, { underline: true, bold: true } as any);
-    doc.moveDown(0.5);
-    doc.fillColor("#111827").fontSize(11).text(`Técnico:`, 320, doc.y, { continued: true, bold: true } as any).font('Helvetica').text(` ${log.tech_name}`);
-    doc.text(`Tipo:`, { continued: true, bold: true } as any).text(` ${log.log_type.toUpperCase()}`);
-    doc.text(`Fecha:`, { continued: true, bold: true } as any).text(` ${new Date(log.start_time).toLocaleDateString('es-CL')}`);
-    doc.text(`H. Inicio:`, { continued: true, bold: true } as any).text(` ${new Date(log.start_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`);
-    if (log.end_time) {
-      doc.text(`H. Término:`, { continued: true, bold: true } as any).text(` ${new Date(log.end_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`);
-    }
-    doc.text(`ID Reporte:`, { continued: true, bold: true } as any).text(` #LOG-${log.id.toString().padStart(5, '0')}`);
-
-    doc.moveDown(2);
-    doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-    doc.moveDown(1.5);
-
-    if (log.log_type === 'mantenimiento') {
-      doc.fillColor(cyan).fontSize(12).text("DETALLE DE REVISIÓN POR EQUIPO", { bold: true } as any);
-      doc.moveDown();
-
-      const tableTop = doc.y;
-      doc.rect(50, tableTop, 495, 20).fill(cyan);
-      doc.fillColor("#FFFFFF").fontSize(10).text("EQUIPO / COMPONENTE", 60, tableTop + 5, { bold: true } as any);
-      doc.text("ESTADO", 350, tableTop + 5, { bold: true } as any);
-      doc.text("OBSERVACIONES", 430, tableTop + 5, { bold: true } as any);
-      doc.moveDown(0.8);
-
-      details.forEach((d, i) => {
-        const y = doc.y;
-        if (i % 2 === 0) {
-          doc.rect(50, y - 2, 495, 24).fill("#F9FAFB");
-        }
-        
-        doc.fillColor("#111827").fontSize(10).text(d.equipment_name, 60, y + 5);
-        
-        const statusText = d.status.toUpperCase();
-        const statusColor = d.status === "fail" ? "#DC2626" : (d.status === "ok" ? "#059669" : "#4B5563");
-        doc.fillColor(statusColor).text(statusText, 350, y + 5, { bold: true } as any);
-        
-        doc.fillColor("#4B5563").fontSize(9).text(d.observations || "Sin observaciones", 430, y + 5, { width: 110 });
-        
-        doc.moveDown(1.2);
-        if (doc.y > 700) {
-          doc.addPage();
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ 
+        margin: 50,
+        size: 'A4',
+        info: {
+          Title: `Reporte de Mantención - ${log.condo_name}`,
+          Author: 'Portería Virtual',
         }
       });
-    } else {
-      doc.fillColor(cyan).fontSize(12).text("DESCRIPCIÓN DEL PROBLEMA", { bold: true } as any);
-      doc.moveDown(0.5);
-      doc.fillColor("#111827").fontSize(10).text(log.problem_description || "No especificado", { width: 495 });
+      const chunks: Buffer[] = [];
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", (err) => reject(err));
+
+      // --- Header ---
+      const logoX = 50;
+      const logoY = 45;
+      const logoSize = 50;
+      const cornerSize = 12;
+      const cyan = "#00AEEF";
+      const gray = "#808285";
+
+      doc.lineWidth(3).strokeColor(cyan);
+      doc.moveTo(logoX, logoY + cornerSize).lineTo(logoX, logoY).lineTo(logoX + cornerSize, logoY).stroke();
+      doc.moveTo(logoX + logoSize - cornerSize, logoY).lineTo(logoX + logoSize, logoY).lineTo(logoX + logoSize, logoY + cornerSize).stroke();
+      doc.moveTo(logoX + logoSize, logoY + logoSize - cornerSize).lineTo(logoX + logoSize, logoY + logoSize).lineTo(logoX + logoSize - cornerSize, logoY + logoSize).stroke();
+      doc.moveTo(logoX + cornerSize, logoY + logoSize).lineTo(logoX, logoY + logoSize).lineTo(logoX, logoY + logoSize - cornerSize).stroke();
+
+      doc.lineWidth(2).strokeColor(gray);
+      doc.moveTo(logoX + 13, logoY + 28)
+         .bezierCurveTo(logoX + 13, logoY + 15, logoX + 37, logoY + 15, logoX + 37, logoY + 28)
+         .stroke();
+      doc.rect(logoX + 10, logoY + 25, 4, 8).fill(gray);
+      doc.rect(logoX + 36, logoY + 25, 4, 8).fill(gray);
+      doc.lineWidth(1).strokeColor(gray).moveTo(logoX + 14, logoY + 33).quadraticCurveTo(logoX + 18, logoY + 38, logoX + 25, logoY + 38).stroke();
       
+      doc.fillColor(gray).fontSize(18).font('Helvetica-Bold').text("portería ", 110, 55, { continued: true })
+         .fillColor(cyan).text("virtual");
+      doc.font('Helvetica').fillColor("#666666").fontSize(10).text("Control de Acceso", 110, 75);
+      doc.fillColor("#666666").fontSize(10).text("contacto@porteriavirtual.cl | www.porteriavirtual.cl", 110, 88);
+
       doc.moveDown(2);
-      doc.fillColor(cyan).fontSize(12).text("ACCIONES REALIZADAS", { bold: true } as any);
+      doc.rect(50, 110, 495, 30).fill("#F3F4F6");
+      const title = log.log_type === 'mantenimiento' 
+        ? "REPORTE TÉCNICO DE MANTENCIÓN PREVENTIVA" 
+        : "REPORTE TÉCNICO DE MANTENCIÓN CORRECTIVA";
+      doc.fillColor("#111827").fontSize(14).font('Helvetica-Bold').text(title, 50, 118, { align: "center" });
+
+      doc.moveDown(3);
+      const startY = 160;
+      
+      doc.font('Helvetica-Bold').fillColor("#374151").fontSize(10).text("DATOS DEL CLIENTE", 50, startY, { underline: true });
       doc.moveDown(0.5);
-      doc.fillColor("#111827").fontSize(10).text(log.actions_taken || "No especificado", { width: 495 });
+      doc.font('Helvetica-Bold').fillColor("#111827").fontSize(11).text(`Condominio:`, { continued: true }).font('Helvetica').text(` ${log.condo_name || 'N/A'}`);
+      doc.font('Helvetica-Bold').text(`Ubicación:`, { continued: true }).font('Helvetica').text(` Región Metropolitana, Chile`);
+      
+      doc.font('Helvetica-Bold').fillColor("#374151").fontSize(10).text("DATOS DEL SERVICIO", 320, startY, { underline: true });
+      doc.moveDown(0.5);
+      doc.font('Helvetica-Bold').fillColor("#111827").fontSize(11).text(`Técnico:`, 320, doc.y, { continued: true }).font('Helvetica').text(` ${log.tech_name || 'N/A'}`);
+      doc.font('Helvetica-Bold').text(`Tipo:`, { continued: true }).font('Helvetica').text(` ${log.log_type.toUpperCase()}`);
+      doc.font('Helvetica-Bold').text(`Fecha:`, { continued: true }).font('Helvetica').text(` ${new Date(log.start_time).toLocaleDateString('es-CL')}`);
+      doc.font('Helvetica-Bold').text(`H. Inicio:`, { continued: true }).font('Helvetica').text(` ${new Date(log.start_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`);
+      if (log.end_time) {
+        doc.font('Helvetica-Bold').text(`H. Término:`, { continued: true }).font('Helvetica').text(` ${new Date(log.end_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`);
+      }
+      doc.font('Helvetica-Bold').text(`ID Reporte:`, { continued: true }).font('Helvetica').text(` #LOG-${log.id.toString().padStart(5, '0')}`);
+
+      doc.moveDown(2);
+      doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown(1.5);
+
+      if (log.log_type === 'mantenimiento') {
+        doc.font('Helvetica-Bold').fillColor(cyan).fontSize(12).text("DETALLE DE REVISIÓN POR EQUIPO");
+        doc.moveDown();
+
+        const tableTop = doc.y;
+        doc.rect(50, tableTop, 495, 20).fill(cyan);
+        doc.fillColor("#FFFFFF").fontSize(10).font('Helvetica-Bold').text("EQUIPO / COMPONENTE", 60, tableTop + 5);
+        doc.text("ESTADO", 350, tableTop + 5);
+        doc.text("OBSERVACIONES", 430, tableTop + 5);
+        doc.moveDown(0.8);
+
+        details.forEach((d, i) => {
+          const y = doc.y;
+          if (i % 2 === 0) {
+            doc.rect(50, y - 2, 495, 24).fill("#F9FAFB");
+          }
+          
+          doc.fillColor("#111827").fontSize(10).font('Helvetica').text(d.equipment_name || 'Equipo', 60, y + 5);
+          
+          const statusText = d.status.toUpperCase();
+          const statusColor = d.status === "fail" ? "#DC2626" : (d.status === "ok" ? "#059669" : "#4B5563");
+          doc.fillColor(statusColor).font('Helvetica-Bold').text(statusText, 350, y + 5);
+          
+          doc.fillColor("#4B5563").fontSize(9).font('Helvetica').text(d.observations || "Sin observaciones", 430, y + 5, { width: 110 });
+          
+          doc.moveDown(1.2);
+          if (doc.y > 700) {
+            doc.addPage();
+          }
+        });
+      } else {
+        doc.font('Helvetica-Bold').fillColor(cyan).fontSize(12).text("DESCRIPCIÓN DEL PROBLEMA");
+        doc.moveDown(0.5);
+        doc.font('Helvetica').fillColor("#111827").fontSize(10).text(log.problem_description || "No especificado", { width: 495 });
+        
+        doc.moveDown(2);
+        doc.font('Helvetica-Bold').fillColor(cyan).fontSize(12).text("ACCIONES REALIZADAS");
+        doc.moveDown(0.5);
+        doc.font('Helvetica').fillColor("#111827").fontSize(10).text(log.actions_taken || "No especificado", { width: 495 });
+      }
+
+      const footerY = 750;
+      doc.strokeColor("#0047AB").lineWidth(2).moveTo(50, footerY).lineTo(545, footerY).stroke();
+      doc.fillColor("#666666").fontSize(8).font('Helvetica').text("Este documento es un comprobante oficial de la mantención realizada por Portería Virtual.", 50, footerY + 10, { align: "center" });
+      doc.text(`Generado el ${new Date().toLocaleString('es-CL')} | Página 1 de 1`, 50, footerY + 22, { align: "center" });
+
+      doc.end();
+    } catch (err) {
+      reject(err);
     }
-
-    const footerY = 750;
-    doc.strokeColor("#0047AB").lineWidth(2).moveTo(50, footerY).lineTo(545, footerY).stroke();
-    doc.fillColor("#666666").fontSize(8).text("Este documento es un comprobante oficial de la mantención realizada por Portería Virtual.", 50, footerY + 10, { align: "center" });
-    doc.text(`Generado el ${new Date().toLocaleString('es-CL')} | Página 1 de 1`, 50, footerY + 22, { align: "center" });
-
-    doc.end();
   });
 };
 
@@ -350,16 +362,21 @@ async function startServer() {
     try {
       if (user.role === 'admin') {
         const [condos]: any = await db.execute(`
-          SELECT c.*, u.name as tech_name, u.id as tech_id,
-          (SELECT COUNT(*) FROM condo_equipment WHERE condo_id = c.id) as equipment_count
+          SELECT c.*, 
+          (SELECT COUNT(*) FROM condo_equipment WHERE condo_id = c.id) as equipment_count,
+          (SELECT COUNT(*) FROM tech_condos tc JOIN users u ON tc.user_id = u.id WHERE tc.condo_id = c.id AND u.role = 'tech') as tech_count,
+          (SELECT COUNT(*) FROM tech_condos tc JOIN users u ON tc.user_id = u.id WHERE tc.condo_id = c.id AND u.role = 'operator') as operator_count,
+          (SELECT COALESCE(JSON_AGG(user_id), '[]') FROM tech_condos WHERE condo_id = c.id) as user_ids
           FROM condos c
-          LEFT JOIN tech_condos tc ON c.id = tc.condo_id
-          LEFT JOIN users u ON tc.user_id = u.id
         `);
         res.json(condos);
       } else {
         const [condos]: any = await db.execute(`
-          SELECT c.* FROM condos c
+          SELECT c.*,
+          (SELECT COUNT(*) FROM condo_equipment WHERE condo_id = c.id) as equipment_count,
+          (SELECT COUNT(*) FROM tech_condos tc JOIN users u ON tc.user_id = u.id WHERE tc.condo_id = c.id AND u.role = 'tech') as tech_count,
+          (SELECT COUNT(*) FROM tech_condos tc JOIN users u ON tc.user_id = u.id WHERE tc.condo_id = c.id AND u.role = 'operator') as operator_count
+          FROM condos c
           JOIN tech_condos tc ON c.id = tc.condo_id
           WHERE tc.user_id = ?
         `, [user.id]);
@@ -372,7 +389,7 @@ async function startServer() {
 
   app.post("/api/condos", authenticate, async (req, res) => {
     if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
-    const { name, address, equipmentIds, techId } = req.body;
+    const { name, address, equipmentIds, userIds } = req.body;
     try {
       const [result]: any = await db.execute('INSERT INTO condos (name, address) VALUES (?, ?) RETURNING id', [name, address]);
       const condoId = result[0].id;
@@ -383,14 +400,16 @@ async function startServer() {
         }
       }
 
-      if (techId) {
-        await db.execute('INSERT INTO tech_condos (user_id, condo_id) VALUES (?, ?)', [Number(techId), condoId]);
-        // Notify technician
-        sendPushNotification(Number(techId), {
-          title: "Nuevo Condominio Asignado",
-          body: `Se te ha asignado el condominio: ${name}`,
-          url: "/condos"
-        });
+      if (userIds && Array.isArray(userIds)) {
+        for (const userId of userIds) {
+          await db.execute('INSERT INTO tech_condos (user_id, condo_id) VALUES (?, ?)', [Number(userId), condoId]);
+          // Notify user
+          sendPushNotification(Number(userId), {
+            title: "Nuevo Condominio Asignado",
+            body: `Se te ha asignado el condominio: ${name}`,
+            url: "/condos"
+          });
+        }
       }
 
       res.json({ id: condoId });
@@ -401,7 +420,7 @@ async function startServer() {
 
   app.put("/api/condos/:id", authenticate, async (req, res) => {
     if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
-    const { name, address, equipmentIds, techId } = req.body;
+    const { name, address, equipmentIds, userIds } = req.body;
     const condoId = req.params.id;
     try {
       await db.execute('UPDATE condos SET name = ?, address = ? WHERE id = ?', [name, address, condoId]);
@@ -412,14 +431,16 @@ async function startServer() {
         }
       }
       await db.execute('DELETE FROM tech_condos WHERE condo_id = ?', [condoId]);
-      if (techId) {
-        await db.execute('INSERT INTO tech_condos (user_id, condo_id) VALUES (?, ?)', [Number(techId), condoId]);
-        // Notify technician
-        sendPushNotification(Number(techId), {
-          title: "Condominio Reasignado",
-          body: `Se te ha asignado el condominio: ${name}`,
-          url: "/condos"
-        });
+      if (userIds && Array.isArray(userIds)) {
+        for (const userId of userIds) {
+          await db.execute('INSERT INTO tech_condos (user_id, condo_id) VALUES (?, ?)', [Number(userId), condoId]);
+          // Notify user
+          sendPushNotification(Number(userId), {
+            title: "Condominio Reasignado",
+            body: `Se te ha asignado el condominio: ${name}`,
+            url: "/condos"
+          });
+        }
       }
       res.json({ success: true });
     } catch (error: any) {
@@ -680,6 +701,7 @@ async function startServer() {
   });
 
   app.get("/api/logs/:id/pdf", authenticate, async (req, res) => {
+    console.log(`[PDF] Generating PDF for log ${req.params.id}`);
     try {
       const [logs]: any = await db.execute(`
         SELECT l.*, c.name as condo_name, u.name as tech_name
@@ -689,6 +711,10 @@ async function startServer() {
         WHERE l.id = ?
       `, [req.params.id]);
       const log = logs[0];
+      if (!log) {
+        console.error(`[PDF] Log ${req.params.id} not found`);
+        return res.status(404).json({ error: "Log not found" });
+      }
 
       const [logDetails]: any = await db.execute(`
         SELECT ld.*, et.name as equipment_name
@@ -697,12 +723,16 @@ async function startServer() {
         WHERE ld.log_id = ?
       `, [req.params.id]);
 
+      console.log(`[PDF] Log found: ${log.condo_name}, details: ${logDetails.length}`);
       const pdfBuffer = await generateLogPDF(log, logDetails);
+      console.log(`[PDF] PDF generated successfully, size: ${pdfBuffer.length} bytes`);
+      
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename=Reporte_${log.condo_name}.pdf`);
+      res.setHeader("Content-Disposition", `attachment; filename=Reporte_${log.id}.pdf`);
       res.send(pdfBuffer);
-    } catch (error) {
-      res.status(500).json({ error: "Error generating PDF" });
+    } catch (error: any) {
+      console.error(`[PDF] Error generating PDF: ${error.message}`);
+      res.status(500).json({ error: "Error generating PDF", details: error.message });
     }
   });
 
@@ -818,14 +848,14 @@ async function startServer() {
   });
 
   app.post("/api/incidents", authenticate, async (req, res) => {
-    const { condoId, equipmentId, description } = req.body;
+    const { condoId, equipmentId, description, priority } = req.body;
     const user = (req as any).user;
     if (user.role !== 'operator' && user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
 
     try {
       const [result]: any = await db.execute(
-        'INSERT INTO incidents (condo_id, equipment_id, operator_id, description) VALUES (?, ?, ?, ?) RETURNING id',
-        [condoId, equipmentId, user.id, description]
+        'INSERT INTO incidents (condo_id, equipment_id, operator_id, description, priority) VALUES (?, ?, ?, ?, ?) RETURNING id',
+        [condoId, equipmentId, user.id, description, priority || 'Media']
       );
       const incidentId = result[0].id;
 
@@ -916,6 +946,7 @@ async function startServer() {
   });
 
   app.get("/api/incidents/:id/pdf", authenticate, async (req, res) => {
+    console.log(`[PDF] Generating PDF for incident ${req.params.id}`);
     try {
       const [incidents]: any = await db.execute(`
         SELECT i.*, c.name as condo_name, et.name as equipment_name, u.name as operator_name, t.name as tech_name
@@ -928,14 +959,21 @@ async function startServer() {
       `, [req.params.id]);
       
       const incident = incidents[0];
-      if (!incident) return res.status(404).json({ error: "Incident not found" });
+      if (!incident) {
+        console.error(`[PDF] Incident ${req.params.id} not found`);
+        return res.status(404).json({ error: "Incident not found" });
+      }
 
+      console.log(`[PDF] Incident found: ${incident.condo_name}`);
       const pdfBuffer = await generateIncidentPDF(incident);
+      console.log(`[PDF] PDF generated successfully, size: ${pdfBuffer.length} bytes`);
+      
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename=Incidencia_${incident.condo_name}.pdf`);
+      res.setHeader("Content-Disposition", `attachment; filename=Incidencia_${incident.id}.pdf`);
       res.send(pdfBuffer);
-    } catch (error) {
-      res.status(500).json({ error: "Error generating PDF" });
+    } catch (error: any) {
+      console.error(`[PDF] Error generating PDF: ${error.message}`);
+      res.status(500).json({ error: "Error generating PDF", details: error.message });
     }
   });
 

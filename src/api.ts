@@ -132,7 +132,7 @@ export const api = {
     return this.request('/incidents');
   },
 
-  reportIncident(data: { condoId: number, equipmentId: number, description: string }) {
+  reportIncident(data: { condoId: number, equipmentId: number, description: string, priority: string }) {
     return this.request('/incidents', { method: 'POST', body: JSON.stringify(data) });
   },
 

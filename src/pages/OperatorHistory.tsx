@@ -51,9 +51,20 @@ export default function OperatorHistory() {
                 <div className="space-y-3 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
-                      incident.status === 'pending' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                      incident.status === 'in_process' ? 'bg-blue-100 text-blue-600' :
+                      incident.status === 'pending' ? 'bg-orange-100 text-orange-600' :
+                      'bg-green-100 text-green-600'
                     }`}>
-                      {incident.status === 'pending' ? 'Pendiente' : 'Resuelto'}
+                      {incident.status === 'in_process' ? 'En Proceso' : 
+                       incident.status === 'pending' ? 'Pendiente' : 'Resuelto'}
+                    </span>
+                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      incident.priority === 'Crítica' ? 'bg-red-600 text-white' :
+                      incident.priority === 'Alta' ? 'bg-orange-100 text-orange-600' :
+                      incident.priority === 'Media' ? 'bg-blue-100 text-blue-600' :
+                      'bg-slate-100 text-slate-600'
+                    }`}>
+                      {incident.priority || 'Media'}
                     </span>
                     <span className="text-xs text-slate-400 flex items-center gap-1">
                       <Clock size={12} />
