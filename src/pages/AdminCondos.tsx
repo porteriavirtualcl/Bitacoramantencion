@@ -21,7 +21,7 @@ export default function AdminCondos() {
     try {
       const [condoData, equipData, techData] = await Promise.all([
         api.getCondos(),
-        api.getEquipmentTypes(),
+        api.getEquipment(),
         api.getTechs()
       ]);
       setCondos(condoData);

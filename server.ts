@@ -374,7 +374,7 @@ async function startServer() {
 
       if (equipmentIds && Array.isArray(equipmentIds)) {
         for (const id of equipmentIds) {
-          await db.execute('INSERT INTO condo_equipment (condo_id, equipment_type_id) VALUES (?, ?)', [condoId, id]);
+          await db.execute('INSERT INTO condo_equipment (condo_id, equipment_id) VALUES (?, ?)', [condoId, id]);
         }
       }
 
@@ -403,7 +403,7 @@ async function startServer() {
       await db.execute('DELETE FROM condo_equipment WHERE condo_id = ?', [condoId]);
       if (equipmentIds && Array.isArray(equipmentIds)) {
         for (const id of equipmentIds) {
-          await db.execute('INSERT INTO condo_equipment (condo_id, equipment_type_id) VALUES (?, ?)', [condoId, id]);
+          await db.execute('INSERT INTO condo_equipment (condo_id, equipment_id) VALUES (?, ?)', [condoId, id]);
         }
       }
       await db.execute('DELETE FROM tech_condos WHERE condo_id = ?', [condoId]);
@@ -436,7 +436,7 @@ async function startServer() {
   });
 
   app.get("/api/equipment-types", authenticate, async (req, res) => {
-    const [types]: any = await db.execute('SELECT * FROM equipment_types');
+    const [types]: any = await db.execute('SELECT * FROM equipment');
     res.json(types);
   });
 
@@ -444,7 +444,7 @@ async function startServer() {
     if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const { name } = req.body;
     try {
-      const [result]: any = await db.execute('INSERT INTO equipment_types (name) VALUES (?) RETURNING id', [name]);
+      const [result]: any = await db.execute('INSERT INTO equipment (name) VALUES (?) RETURNING id', [name]);
       res.json({ id: result[0].id, name });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -455,8 +455,8 @@ async function startServer() {
     if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const typeId = req.params.id;
     try {
-      await db.execute('DELETE FROM condo_equipment WHERE equipment_type_id = ?', [typeId]);
-      await db.execute('DELETE FROM equipment_types WHERE id = ?', [typeId]);
+      await db.execute('DELETE FROM condo_equipment WHERE equipment_id = ?', [typeId]);
+      await db.execute('DELETE FROM equipment WHERE id = ?', [typeId]);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -465,8 +465,8 @@ async function startServer() {
 
   app.get("/api/condos/:id/equipment", authenticate, async (req, res) => {
     const [equipment]: any = await db.execute(`
-      SELECT et.* FROM equipment_types et
-      JOIN condo_equipment ce ON et.id = ce.equipment_type_id
+      SELECT et.* FROM equipment et
+      JOIN condo_equipment ce ON et.id = ce.equipment_id
       WHERE ce.condo_id = ?
     `, [req.params.id]);
     res.json(equipment);
@@ -513,7 +513,7 @@ async function startServer() {
 
       if (details && Array.isArray(details)) {
         for (const d of details) {
-          await db.execute('INSERT INTO log_details (log_id, equipment_type_id, status, observations) VALUES (?, ?, ?, ?)', [logId, d.equipment_type_id, d.status, d.observations]);
+          await db.execute('INSERT INTO log_details (log_id, equipment_id, status, observations) VALUES (?, ?, ?, ?)', [logId, d.equipment_id, d.status, d.observations]);
         }
       }
 
@@ -529,7 +529,7 @@ async function startServer() {
       const [logDetails]: any = await db.execute(`
         SELECT ld.*, et.name as equipment_name
         FROM log_details ld
-        JOIN equipment_types et ON ld.equipment_type_id = et.id
+        JOIN equipment et ON ld.equipment_id = et.id
         WHERE ld.log_id = ?
       `, [logId]);
 
@@ -619,7 +619,7 @@ async function startServer() {
       const [logDetails]: any = await db.execute(`
         SELECT ld.*, et.name as equipment_name
         FROM log_details ld
-        JOIN equipment_types et ON ld.equipment_type_id = et.id
+        JOIN equipment et ON ld.equipment_id = et.id
         WHERE ld.log_id = ?
       `, [req.params.id]);
 
@@ -722,7 +722,7 @@ async function startServer() {
         SELECT i.*, c.name as condo_name, et.name as equipment_name, u.name as operator_name
         FROM incidents i
         JOIN condos c ON i.condo_id = c.id
-        JOIN equipment_types et ON i.equipment_type_id = et.id
+        JOIN equipment et ON i.equipment_id = et.id
         JOIN users u ON i.operator_id = u.id
       `;
       let params: any[] = [];
@@ -744,14 +744,14 @@ async function startServer() {
   });
 
   app.post("/api/incidents", authenticate, async (req, res) => {
-    const { condoId, equipmentTypeId, description } = req.body;
+    const { condoId, equipmentId, description } = req.body;
     const user = (req as any).user;
     if (user.role !== 'operator' && user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
 
     try {
       const [result]: any = await db.execute(
-        'INSERT INTO incidents (condo_id, equipment_type_id, operator_id, description) VALUES (?, ?, ?, ?) RETURNING id',
-        [condoId, equipmentTypeId, user.id, description]
+        'INSERT INTO incidents (condo_id, equipment_id, operator_id, description) VALUES (?, ?, ?, ?) RETURNING id',
+        [condoId, equipmentId, user.id, description]
       );
       const incidentId = result[0].id;
 
@@ -779,7 +779,7 @@ async function startServer() {
             SELECT i.*, c.name as condo_name, et.name as equipment_name, u.name as operator_name
             FROM incidents i
             JOIN condos c ON i.condo_id = c.id
-            JOIN equipment_types et ON i.equipment_type_id = et.id
+            JOIN equipment et ON i.equipment_id = et.id
             JOIN users u ON i.operator_id = u.id
             WHERE i.id = ?
           `, [incidentId]);
@@ -819,7 +819,7 @@ async function startServer() {
         const [incidents]: any = await db.execute(`
           SELECT i.*, et.name as equipment_name 
           FROM incidents i 
-          JOIN equipment_types et ON i.equipment_type_id = et.id 
+          JOIN equipment et ON i.equipment_id = et.id 
           WHERE i.id = ?
         `, [incidentId]);
         
@@ -845,7 +845,7 @@ async function startServer() {
         SELECT i.*, c.name as condo_name, et.name as equipment_name, u.name as operator_name
         FROM incidents i
         JOIN condos c ON i.condo_id = c.id
-        JOIN equipment_types et ON i.equipment_type_id = et.id
+        JOIN equipment et ON i.equipment_id = et.id
         JOIN users u ON i.operator_id = u.id
         WHERE i.id = ?
       `, [req.params.id]);

@@ -14,7 +14,7 @@ export default function OperatorIncidentForm() {
   const [success, setSuccess] = useState(false);
 
   const [formData, setFormData] = useState({
-    equipmentTypeId: '',
+    equipmentId: '',
     description: ''
   });
 
@@ -39,13 +39,13 @@ export default function OperatorIncidentForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.equipmentTypeId || !formData.description) return;
+    if (!formData.equipmentId || !formData.description) return;
 
     setSubmitting(true);
     try {
       await api.reportIncident({
         condoId: Number(condoId),
-        equipmentTypeId: Number(formData.equipmentTypeId),
+        equipmentId: Number(formData.equipmentId),
         description: formData.description
       });
       setSuccess(true);
@@ -110,8 +110,8 @@ export default function OperatorIncidentForm() {
             </label>
             <select
               required
-              value={formData.equipmentTypeId}
-              onChange={(e) => setFormData({ ...formData, equipmentTypeId: e.target.value })}
+              value={formData.equipmentId}
+              onChange={(e) => setFormData({ ...formData, equipmentId: e.target.value })}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all bg-slate-50"
             >
               <option value="">Selecciona el equipo...</option>

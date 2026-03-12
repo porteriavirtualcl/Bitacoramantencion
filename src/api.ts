@@ -44,7 +44,7 @@ export const api = {
     return this.request('/condos');
   },
 
-  getEquipmentTypes() {
+  getEquipment() {
     return this.request('/equipment-types');
   },
 
@@ -80,7 +80,7 @@ export const api = {
     return this.request(`/condos/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   },
 
-  createEquipmentType(name: string) {
+  createEquipment(name: string) {
     return this.request('/equipment-types', { method: 'POST', body: JSON.stringify({ name }) });
   },
 
@@ -120,7 +120,7 @@ export const api = {
     return this.request('/incidents');
   },
 
-  reportIncident(data: { condoId: number, equipmentTypeId: number, description: string }) {
+  reportIncident(data: { condoId: number, equipmentId: number, description: string }) {
     return this.request('/incidents', { method: 'POST', body: JSON.stringify(data) });
   },
 

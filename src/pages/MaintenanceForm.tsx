@@ -93,7 +93,7 @@ export default function MaintenanceForm() {
     setSubmitting(true);
     try {
       const details = Object.entries(responses).map(([id, data]) => ({
-        equipment_type_id: Number(id),
+        equipment_id: Number(id),
         status: data.status,
         observations: data.observations
       }));

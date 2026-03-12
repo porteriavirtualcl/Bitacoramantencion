@@ -15,7 +15,7 @@ export default function AdminEquipment() {
 
   const loadTypes = async () => {
     try {
-      const data = await api.getEquipmentTypes();
+      const data = await api.getEquipment();
       setTypes(data);
     } catch (err) {
       console.error(err);
@@ -29,7 +29,7 @@ export default function AdminEquipment() {
     if (!newName.trim()) return;
     setSaving(true);
     try {
-      await api.createEquipmentType(newName);
+      await api.createEquipment(newName);
       await loadTypes();
       setNewName('');
     } catch (err) {

@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS condos (
   address TEXT NOT NULL
 );
 
--- Equipment types table
-CREATE TABLE IF NOT EXISTS equipment_types (
+-- Equipment table
+CREATE TABLE IF NOT EXISTS equipment (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL
 );
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS equipment_types (
 CREATE TABLE IF NOT EXISTS condo_equipment (
   id SERIAL PRIMARY KEY,
   condo_id INTEGER NOT NULL REFERENCES condos(id) ON DELETE CASCADE,
-  equipment_type_id INTEGER NOT NULL REFERENCES equipment_types(id) ON DELETE CASCADE
+  equipment_id INTEGER NOT NULL REFERENCES equipment(id) ON DELETE CASCADE
 );
 
 -- Tech condos association
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS maintenance_logs (
 CREATE TABLE IF NOT EXISTS log_details (
   id SERIAL PRIMARY KEY,
   log_id INTEGER NOT NULL REFERENCES maintenance_logs(id) ON DELETE CASCADE,
-  equipment_type_id INTEGER NOT NULL REFERENCES equipment_types(id),
+  equipment_id INTEGER NOT NULL REFERENCES equipment(id),
   status TEXT NOT NULL,
   observations TEXT
 );
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS log_details (
 CREATE TABLE IF NOT EXISTS incidents (
   id SERIAL PRIMARY KEY,
   condo_id INTEGER NOT NULL REFERENCES condos(id),
-  equipment_type_id INTEGER NOT NULL REFERENCES equipment_types(id),
+  equipment_id INTEGER NOT NULL REFERENCES equipment(id),
   operator_id INTEGER NOT NULL REFERENCES users(id),
   description TEXT NOT NULL,
   status TEXT DEFAULT 'open',
