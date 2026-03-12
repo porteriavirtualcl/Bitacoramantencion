@@ -477,6 +477,8 @@ async function startServer() {
     try {
       const [result]: any = await db.execute('INSERT INTO maintenance_logs (condo_id, tech_id, log_type) VALUES (?, ?, ?) RETURNING id', [condoId, user.id, logType || 'mantenimiento']);
       const logId = result[0].id;
+
+      if (logType === 'correctiva') {
         const [condos]: any = await db.execute('SELECT name FROM condos WHERE id = ?', [condoId]);
         const condoName = condos[0]?.name || "Condominio";
         
@@ -491,7 +493,7 @@ async function startServer() {
         });
       }
 
-      res.json({ id: result.insertId });
+      res.json({ id: logId });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
