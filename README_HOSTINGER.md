@@ -8,23 +8,19 @@ Esta guía detalla los pasos necesarios para desplegar la aplicación de Bitáco
 2.  **SSL**: Activa el certificado SSL gratuito de Let's Encrypt. Las notificaciones push **requieren HTTPS**.
 3.  **Node.js**: En el panel de Hostinger, asegúrate de tener instalada una versión de Node.js (recomendado v18 o superior).
 
-## 2. Configuración de Base de Datos (MySQL)
+## 2. Configuración de Base de Datos (Supabase / PostgreSQL)
 
-1.  Crea una nueva base de datos MySQL desde el panel de Hostinger.
-2.  Anota el nombre de la base de datos, el usuario y la contraseña.
-3.  **Acceso Remoto**: Si vas a conectar desde fuera de Hostinger (opcional), ve a "Remote MySQL" y añade la IP de tu servidor o usa `%`.
+1.  Esta aplicación utiliza **PostgreSQL** (vía Supabase).
+2.  Asegúrate de tener tu **DATABASE_URL** de Supabase.
+3.  El esquema se crea automáticamente al iniciar la aplicación por primera vez.
 
 ## 3. Variables de Entorno (.env)
 
 Configura las siguientes variables en el panel de Hostinger (Sección Avanzado -> Configuración de Node.js -> Variables de Entorno):
 
 ```env
-# Base de Datos
-MYSQL_HOST=localhost (o la IP que provea Hostinger)
-MYSQL_USER=u123456789_bitacora
-MYSQL_PASSWORD=tu_password_seguro
-MYSQL_DATABASE=u123456789_bitacora
-MYSQL_PORT=3306
+# Base de Datos (Supabase)
+DATABASE_URL=postgresql://postgres:LBbAC7IWZPeEVOr1@db.ehzgxeazrfgxurnewfpz.supabase.co:5432/postgres
 
 # Correo (SMTP)
 SMTP_HOST=smtp.hostinger.com

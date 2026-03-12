@@ -26,6 +26,7 @@ export async function initDb() {
 
   try {
     console.log("🔗 Intentando conectar a la base de datos...");
+    console.log("URL detectada:", dbUrl.substring(0, 20) + "...");
     const client = await pool.connect();
     console.log("📡 Conexión exitosa con Supabase (PostgreSQL).");
     
