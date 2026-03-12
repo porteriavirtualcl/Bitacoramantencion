@@ -45,7 +45,7 @@ export const api = {
   },
 
   getEquipment() {
-    return this.request('/equipment-types');
+    return this.request('/equipment');
   },
 
   getCondoEquipment(condoId: number) {
@@ -68,6 +68,14 @@ export const api = {
     return this.request(`/logs/${id}`);
   },
 
+  cancelLog(id: number) {
+    return this.request(`/logs/${id}`, { method: 'DELETE' });
+  },
+
+  pauseLog(id: number) {
+    return this.request(`/logs/${id}/pause`, { method: 'PUT' });
+  },
+
   getLogPdfUrl(logId: number) {
     return `/api/logs/${logId}/pdf?token=${localStorage.getItem('token')}`;
   },
@@ -81,7 +89,11 @@ export const api = {
   },
 
   createEquipment(name: string) {
-    return this.request('/equipment-types', { method: 'POST', body: JSON.stringify({ name }) });
+    return this.request('/equipment', { method: 'POST', body: JSON.stringify({ name }) });
+  },
+
+  deleteEquipment(id: number) {
+    return this.request(`/equipment/${id}`, { method: 'DELETE' });
   },
 
   getTechs() {

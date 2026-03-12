@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle2, XCircle, AlertCircle, Save, Loader2, Clock, Info, ArrowRight } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, Save, Loader2, Clock, Info, ArrowRight, Trash2, Pause } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../api';
 import { clsx } from 'clsx';
@@ -33,6 +33,12 @@ export default function MaintenanceForm() {
       
       if (currentLog) {
         console.log('Fetching equipment for condo:', currentLog.condo_id);
+        
+        // If log was paused, set it back to in_progress
+        if (currentLog.status === 'paused') {
+          await api.request(`/logs/${currentLog.id}/resume`, { method: 'PUT' });
+        }
+
         const equipData = await api.getCondoEquipment(currentLog.condo_id);
         console.log('equipData fetched:', equipData);
         setEquipment(equipData);
@@ -105,6 +111,26 @@ export default function MaintenanceForm() {
     } catch (err) {
       alert('Error al finalizar mantención');
       setSubmitting(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (window.confirm('¿Estás seguro de cancelar esta bitácora? Se perderán todos los datos registrados.')) {
+      try {
+        await api.cancelLog(Number(logId));
+        navigate('/tech');
+      } catch (err) {
+        alert('Error al cancelar la bitácora');
+      }
+    }
+  };
+
+  const handlePause = async () => {
+    try {
+      await api.pauseLog(Number(logId));
+      navigate('/tech');
+    } catch (err) {
+      alert('Error al pausar la bitácora');
     }
   };
 
@@ -248,10 +274,18 @@ export default function MaintenanceForm() {
 
       <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4">
         <button 
-          onClick={() => navigate('/tech')}
-          className="w-full sm:w-auto px-6 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
+          onClick={handleCancel}
+          className="w-full sm:w-auto px-6 py-2.5 text-red-600 font-medium hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center gap-2"
         >
-          Cancelar
+          <Trash2 size={18} />
+          <span>Cancelar</span>
+        </button>
+        <button 
+          onClick={handlePause}
+          className="w-full sm:w-auto px-6 py-2.5 text-amber-600 font-medium hover:bg-amber-50 rounded-xl transition-colors flex items-center justify-center gap-2"
+        >
+          <Pause size={18} />
+          <span>Pausar</span>
         </button>
         <button 
           onClick={handleSubmit}

@@ -96,7 +96,7 @@ export default function AdminEquipment() {
                 onClick={async () => {
                   if (confirm('¿Estás seguro de eliminar este tipo de equipo?')) {
                     try {
-                      await api.request(`/equipment-types/${type.id}`, { method: 'DELETE' });
+                      await api.deleteEquipment(type.id);
                       await loadTypes();
                     } catch (err) {
                       alert('Error al eliminar tipo de equipo');

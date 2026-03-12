@@ -435,12 +435,16 @@ async function startServer() {
     }
   });
 
-  app.get("/api/equipment-types", authenticate, async (req, res) => {
-    const [types]: any = await db.execute('SELECT * FROM equipment');
-    res.json(types);
+  app.get("/api/equipment", authenticate, async (req, res) => {
+    try {
+      const [types]: any = await db.execute('SELECT * FROM equipment ORDER BY name ASC');
+      res.json(types);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
-  app.post("/api/equipment-types", authenticate, async (req, res) => {
+  app.post("/api/equipment", authenticate, async (req, res) => {
     if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const { name } = req.body;
     try {
@@ -451,7 +455,7 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/equipment-types/:id", authenticate, async (req, res) => {
+  app.delete("/api/equipment/:id", authenticate, async (req, res) => {
     if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const typeId = req.params.id;
     try {
@@ -464,12 +468,16 @@ async function startServer() {
   });
 
   app.get("/api/condos/:id/equipment", authenticate, async (req, res) => {
-    const [equipment]: any = await db.execute(`
-      SELECT et.* FROM equipment et
-      JOIN condo_equipment ce ON et.id = ce.equipment_id
-      WHERE ce.condo_id = ?
-    `, [req.params.id]);
-    res.json(equipment);
+    try {
+      const [equipment]: any = await db.execute(`
+        SELECT et.* FROM equipment et
+        JOIN condo_equipment ce ON et.id = ce.equipment_id
+        WHERE ce.condo_id = ?
+      `, [req.params.id]);
+      res.json(equipment);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   app.post("/api/logs/start", authenticate, async (req, res) => {
@@ -555,6 +563,67 @@ async function startServer() {
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/logs/:id", authenticate, async (req, res) => {
+    const logId = req.params.id;
+    const user = (req as any).user;
+    try {
+      const [logs]: any = await db.execute('SELECT * FROM maintenance_logs WHERE id = ?', [logId]);
+      const log = logs[0];
+      if (!log) return res.status(404).json({ error: "Log not found" });
+      
+      if (user.role !== 'admin' && log.tech_id !== user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      if (log.status === 'completed') {
+        return res.status(400).json({ error: "Cannot delete a completed log" });
+      }
+
+      await db.execute('DELETE FROM maintenance_logs WHERE id = ?', [logId]);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/logs/:id/pause", authenticate, async (req, res) => {
+    const logId = req.params.id;
+    const user = (req as any).user;
+    try {
+      const [logs]: any = await db.execute('SELECT * FROM maintenance_logs WHERE id = ?', [logId]);
+      const log = logs[0];
+      if (!log) return res.status(404).json({ error: "Log not found" });
+
+      if (user.role !== 'admin' && log.tech_id !== user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      await db.execute("UPDATE maintenance_logs SET status = 'paused' WHERE id = ?", [logId]);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/logs/:id/resume", authenticate, async (req, res) => {
+    const logId = req.params.id;
+    const user = (req as any).user;
+    try {
+      const [logs]: any = await db.execute('SELECT * FROM maintenance_logs WHERE id = ?', [logId]);
+      const log = logs[0];
+      if (!log) return res.status(404).json({ error: "Log not found" });
+
+      if (user.role !== 'admin' && log.tech_id !== user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      await db.execute("UPDATE maintenance_logs SET status = 'in_progress' WHERE id = ?", [logId]);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

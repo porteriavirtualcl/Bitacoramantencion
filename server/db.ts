@@ -30,39 +30,61 @@ export async function initDb() {
     
     // Check if tables exist by checking for 'users' table in public schema
     console.log("🔍 Verificando existencia de tablas...");
-    const res = await client.query("SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'");
     
-    console.log(`📊 Resultado de búsqueda de tabla 'users': ${res.rows.length} filas encontradas.`);
-    
-    if (res.rows.length === 0) {
-      console.log("🏗️ No se encontró la tabla 'users'. Inicializando esquema de base de datos...");
-      const schemaPath = path.join(process.cwd(), 'supabase_schema.sql');
-      if (!fs.existsSync(schemaPath)) {
-        console.error("❌ Error: No se encontró el archivo supabase_schema.sql en " + schemaPath);
-      } else {
-        const schema = fs.readFileSync(schemaPath, 'utf8');
-        console.log("📜 Ejecutando script de esquema...");
-        
-        // Split schema into individual statements
-        // This is a simple split, might not handle complex cases but should work for this schema
-        const statements = schema
-          .split(';')
-          .map(s => s.trim())
-          .filter(s => s.length > 0);
-        
-        for (const statement of statements) {
-          try {
-            await client.query(statement);
-          } catch (stmtErr: any) {
+    const schemaPath = path.join(process.cwd(), 'supabase_schema.sql');
+    if (!fs.existsSync(schemaPath)) {
+      console.error("❌ Error: No se encontró el archivo supabase_schema.sql en " + schemaPath);
+    } else {
+      const schema = fs.readFileSync(schemaPath, 'utf8');
+      console.log("📜 Ejecutando script de esquema (asegurando tablas)...");
+      
+      // 1. Renombrar tablas antiguas si existen
+      const migrations = [
+        "ALTER TABLE IF EXISTS equipment_types RENAME TO equipment",
+        "ALTER TABLE IF EXISTS log_details RENAME COLUMN equipment_type_id TO equipment_id",
+        "ALTER TABLE IF EXISTS incidents RENAME COLUMN equipment_type_id TO equipment_id",
+        "ALTER TABLE IF EXISTS condo_equipment RENAME COLUMN equipment_type_id TO equipment_id"
+      ];
+
+      for (const migration of migrations) {
+        try {
+          await client.query(migration);
+          console.log(`✅ Migración exitosa: ${migration}`);
+        } catch (e) {
+          // Ignorar si falla (ej: la tabla/columna ya tiene el nombre nuevo o no existe)
+        }
+      }
+
+      // 2. Ejecutar el esquema completo
+      const statements = schema
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+      
+      for (const statement of statements) {
+        try {
+          await client.query(statement);
+        } catch (stmtErr: any) {
+          // Solo loguear si no es un error de "ya existe"
+          if (!stmtErr.message.includes("already exists") && !stmtErr.message.includes("already a primary key")) {
             console.error(`❌ Error ejecutando sentencia: ${statement.substring(0, 50)}...`);
             console.error(`Mensaje: ${stmtErr.message}`);
           }
         }
-        
-        console.log("✅ Esquema procesado.");
       }
-    } else {
-      console.log("✅ Las tablas ya existen. Saltando inicialización.");
+      
+      // 3. Verificación final de tablas críticas
+      const criticalTables = ['users', 'condos', 'equipment', 'maintenance_logs', 'log_details', 'incidents'];
+      for (const table of criticalTables) {
+        try {
+          await client.query(`SELECT 1 FROM ${table} LIMIT 1`);
+          console.log(`✅ Tabla verificada: ${table}`);
+        } catch (e: any) {
+          console.error(`⚠️ Advertencia: La tabla '${table}' no parece estar lista: ${e.message}`);
+        }
+      }
+
+      console.log("✅ Proceso de inicialización de base de datos completado.");
     }
 
     client.release();

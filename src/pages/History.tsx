@@ -113,9 +113,13 @@ export default function HistoryPage() {
                   </td>
                   <td className="p-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                      log.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                      log.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                      log.status === 'paused' ? 'bg-slate-100 text-slate-700' :
+                      'bg-blue-100 text-blue-700'
                     }`}>
-                      {log.status === 'completed' ? 'Finalizado' : 'En Proceso'}
+                      {log.status === 'completed' ? 'Finalizado' : 
+                       log.status === 'paused' ? 'Pausado' : 
+                       'En Proceso'}
                     </span>
                   </td>
                   <td className="p-4 text-right">

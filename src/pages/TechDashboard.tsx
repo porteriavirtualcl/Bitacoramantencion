@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Search, ArrowRight, Loader2, PlusCircle, Clock } from 'lucide-react';
+import { Building2, Search, ArrowRight, Loader2, PlusCircle, Clock, Pause } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../api';
 import { clsx } from 'clsx';
@@ -30,7 +30,7 @@ export default function TechDashboard() {
       setCondos(Array.isArray(condoData) ? condoData : []);
       
       if (Array.isArray(historyData)) {
-        const active = historyData.filter((l: any) => l.status === 'in_progress');
+        const active = historyData.filter((l: any) => l.status === 'in_progress' || l.status === 'paused');
         console.log('TechDashboard: Active logs identified', active);
         setActiveLogs(active);
       } else {
@@ -146,9 +146,17 @@ export default function TechDashboard() {
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[9px] md:text-[10px] font-black uppercase px-2 py-0.5 bg-amber-200 text-amber-800 rounded">
-                      {log.log_type}
-                    </span>
+                    <div className="flex gap-1.5">
+                      <span className="text-[9px] md:text-[10px] font-black uppercase px-2 py-0.5 bg-amber-200 text-amber-800 rounded">
+                        {log.log_type}
+                      </span>
+                      {log.status === 'paused' && (
+                        <span className="text-[9px] md:text-[10px] font-black uppercase px-2 py-0.5 bg-slate-200 text-slate-700 rounded flex items-center gap-1">
+                          <Pause size={8} />
+                          PAUSADA
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[10px] md:text-xs text-amber-600 font-medium">
                       Iniciado: {new Date(log.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>

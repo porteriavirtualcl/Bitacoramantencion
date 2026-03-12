@@ -10,7 +10,9 @@ import {
   Calendar,
   User,
   MessageSquare,
-  Wrench
+  Wrench,
+  Trash2,
+  Pause
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../api';
@@ -34,6 +36,12 @@ export default function CorrectiveForm() {
     try {
       if (!logId) return;
       const data = await api.getLog(Number(logId));
+      
+      // If log was paused, set it back to in_progress
+      if (data.status === 'paused') {
+        await api.request(`/logs/${data.id}/resume`, { method: 'PUT' });
+      }
+
       setLogData(data);
       if (data.problem_description) setProblemDescription(data.problem_description);
       if (data.actions_taken) setActionsTaken(data.actions_taken);
@@ -63,6 +71,26 @@ export default function CorrectiveForm() {
     } catch (err) {
       alert('Error al finalizar la bitácora');
       setSubmitting(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (window.confirm('¿Estás seguro de cancelar esta bitácora? Se perderán todos los datos registrados.')) {
+      try {
+        await api.cancelLog(Number(logId));
+        navigate('/tech');
+      } catch (err) {
+        alert('Error al cancelar la bitácora');
+      }
+    }
+  };
+
+  const handlePause = async () => {
+    try {
+      await api.pauseLog(Number(logId));
+      navigate('/tech');
+    } catch (err) {
+      alert('Error al pausar la bitácora');
     }
   };
 
@@ -173,11 +201,27 @@ export default function CorrectiveForm() {
             />
           </div>
 
-          <div className="pt-2 md:pt-4">
+          <div className="pt-2 md:pt-4 flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="flex-1 px-6 py-3 text-red-600 font-bold hover:bg-red-50 rounded-xl transition-all flex items-center justify-center gap-2 border border-red-100"
+            >
+              <Trash2 size={20} />
+              <span>Cancelar</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePause}
+              className="flex-1 px-6 py-3 text-amber-600 font-bold hover:bg-amber-50 rounded-xl transition-all flex items-center justify-center gap-2 border border-amber-100"
+            >
+              <Pause size={20} />
+              <span>Pausar</span>
+            </button>
             <button
               type="submit"
               disabled={submitting}
-              className="w-full btn-primary py-3 md:py-4 flex items-center justify-center gap-2 text-base md:text-lg"
+              className="flex-[2] btn-primary py-3 md:py-4 flex items-center justify-center gap-2 text-base md:text-lg"
             >
               {submitting ? (
                 <>
