@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Search, ArrowRight, Loader2, PlusCircle, Clock, Pause } from 'lucide-react';
+import { Building2, Search, ArrowRight, Loader2, PlusCircle, Clock, Pause, AlertTriangle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../api';
 import { clsx } from 'clsx';
@@ -8,6 +8,7 @@ import { clsx } from 'clsx';
 export default function TechDashboard() {
   const [condos, setCondos] = useState<any[]>([]);
   const [activeLogs, setActiveLogs] = useState<any[]>([]);
+  const [pendingIncidents, setPendingIncidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [starting, setStarting] = useState<number | null>(null);
@@ -21,21 +22,25 @@ export default function TechDashboard() {
   const loadData = async () => {
     console.log('TechDashboard: loadData started');
     try {
-      const [condoData, historyData] = await Promise.all([
+      const [condoData, historyData, incidentData] = await Promise.all([
         api.getCondos(),
-        api.getHistory()
+        api.getHistory(),
+        api.getIncidents()
       ]);
-      console.log('TechDashboard: Data loaded', { condos: condoData, history: historyData });
+      console.log('TechDashboard: Data loaded', { condos: condoData, history: historyData, incidents: incidentData });
       
       setCondos(Array.isArray(condoData) ? condoData : []);
       
       if (Array.isArray(historyData)) {
         const active = historyData.filter((l: any) => l.status === 'in_progress' || l.status === 'paused');
-        console.log('TechDashboard: Active logs identified', active);
         setActiveLogs(active);
-      } else {
-        console.warn('TechDashboard: historyData is not an array', historyData);
-        setActiveLogs([]);
+      }
+
+      if (Array.isArray(incidentData)) {
+        const pending = incidentData
+          .filter((i: any) => i.status === 'pending')
+          .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        setPendingIncidents(pending);
       }
     } catch (err: any) {
       console.error('TechDashboard: Error loading data', err);
@@ -174,6 +179,53 @@ export default function TechDashboard() {
                 </button>
               </motion.div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {pendingIncidents.length > 0 && (
+        <div className="space-y-3 md:space-y-4">
+          <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+            <AlertTriangle className="text-red-500" size={18} />
+            <span>Incidencias Pendientes (Prioridad: Antiguas)</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {pendingIncidents.slice(0, 3).map((incident) => (
+              <motion.div 
+                key={`dash-inc-${incident.id}`}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-red-50 border border-red-200 rounded-xl p-4 md:p-6 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[9px] md:text-[10px] font-black uppercase px-2 py-0.5 bg-red-200 text-red-800 rounded">
+                      {incident.condo_name}
+                    </span>
+                    <span className="text-[10px] md:text-xs text-red-600 font-medium">
+                      Reportado: {new Date(incident.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-sm md:text-base">{incident.equipment_name}</h3>
+                  <p className="text-xs text-slate-600 mt-2 line-clamp-2 italic">"{incident.description}"</p>
+                </div>
+                <button 
+                  onClick={() => navigate('/tech/incidents')}
+                  className="mt-3 md:mt-4 w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-sm transition-all shadow-sm"
+                >
+                  Ver Incidencias
+                </button>
+              </motion.div>
+            ))}
+            {pendingIncidents.length > 3 && (
+              <button 
+                onClick={() => navigate('/tech/incidents')}
+                className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-500"
+              >
+                <PlusCircle size={24} className="mb-2" />
+                <span className="font-bold text-sm">Ver {pendingIncidents.length - 3} más</span>
+              </button>
+            )}
           </div>
         </div>
       )}

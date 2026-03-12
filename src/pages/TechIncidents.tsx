@@ -51,7 +51,14 @@ export default function TechIncidents() {
     window.open(api.getIncidentPdfUrl(id), '_blank');
   };
 
-  const filteredIncidents = incidents.filter(i => i.status === activeTab);
+  const filteredIncidents = incidents
+    .filter(i => i.status === activeTab)
+    .sort((a, b) => {
+      if (activeTab === 'pending') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
   if (loading) return <div className="flex justify-center p-12">Cargando...</div>;
 
