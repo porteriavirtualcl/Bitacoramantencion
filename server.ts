@@ -782,7 +782,7 @@ async function startServer() {
             JOIN equipment_types et ON i.equipment_type_id = et.id
             JOIN users u ON i.operator_id = u.id
             WHERE i.id = ?
-          `, [result.insertId]);
+          `, [incidentId]);
           
           if (incidentData[0]) {
             const pdfBuffer = await generateIncidentPDF(incidentData[0]);
@@ -802,7 +802,7 @@ async function startServer() {
         }
       } catch (e) { console.error("Incident Email error:", e); }
 
-      res.json({ id: result.insertId });
+      res.json({ id: incidentId });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

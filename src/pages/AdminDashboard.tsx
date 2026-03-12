@@ -5,7 +5,7 @@ import { api } from '../api';
 import { Link } from 'react-router-dom';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<any>({ condos: 0, logs: 0, pending: 0 });
+  const [stats, setStats] = useState<any>({ condos: 0, logs: 0, pending: 0, techs: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,10 +16,12 @@ export default function AdminDashboard() {
     try {
       const condos = await api.getCondos();
       const history = await api.getHistory();
+      const techs = await api.getTechs();
       setStats({
         condos: condos.length,
         logs: history.length,
         pending: history.filter((l: any) => l.status !== 'completed').length,
+        techs: techs.length,
         recent: history.slice(0, 5)
       });
     } catch (err) {
@@ -40,7 +42,7 @@ export default function AdminDashboard() {
     { label: 'Condominios', value: stats.condos, icon: Building2, color: 'text-blue-600', bg: 'bg-blue-50', path: '/admin/condos' },
     { label: 'Mantenciones Totales', value: stats.logs, icon: History, color: 'text-purple-600', bg: 'bg-purple-50', path: '/history' },
     { label: 'En Proceso', value: stats.pending, icon: TrendingUp, color: 'text-orange-600', bg: 'bg-orange-50', path: '/history' },
-    { label: 'Técnicos Activos', value: 2, icon: Users, color: 'text-green-600', bg: 'bg-green-50', path: '#' },
+    { label: 'Técnicos Activos', value: stats.techs, icon: Users, color: 'text-green-600', bg: 'bg-green-50', path: '/admin/techs' },
   ];
 
   return (
