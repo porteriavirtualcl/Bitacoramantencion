@@ -8,10 +8,22 @@ import PDFDocument from "pdfkit";
 import path from "path";
 import { fileURLToPath } from "url";
 import webpush from "web-push";
+import { createClient } from "@supabase/supabase-js";
 import db, { initDb } from "./server/db.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const supabaseUrl = process.env.SUPABASE_URL || "";
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey;
+
+const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || "porteria-virtual-secret-123";
 
@@ -344,16 +356,53 @@ const startServer = async () => {
   app.post("/api/login", async (req, res) => {
     const { email, password } = req.body;
     try {
-      const [users]: any = await db.execute('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [email]);
-      const user = users[0];
+      // 1. Autenticar con Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (!user) {
-        return res.status(401).json({ error: "Credenciales inválidas" });
+      if (authError) {
+        // Si falla Supabase, intentamos verificar si el usuario existe en nuestra DB local
+        // Esto es para compatibilidad con usuarios creados antes de la migración
+        const [users]: any = await db.execute('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [email]);
+        const user = users[0];
+
+        if (!user) {
+          return res.status(401).json({ error: "Credenciales inválidas" });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+          return res.status(401).json({ error: "Credenciales inválidas" });
+        }
+
+        // Si la contraseña es válida localmente, generamos el token
+        const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, JWT_SECRET);
+        return res.json({ 
+          token, 
+          user: { 
+            id: user.id, 
+            role: user.role, 
+            name: user.name, 
+            email: user.email,
+            mustChangePassword: user.must_change_password === true || user.must_change_password === 1
+          } 
+        });
       }
 
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        return res.status(401).json({ error: "Credenciales inválidas" });
+      // 2. Si Supabase Auth tuvo éxito, obtenemos los datos extendidos de nuestra tabla users
+      const [users]: any = await db.execute('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [email]);
+      let user = users[0];
+
+      if (!user) {
+        // Si el usuario existe en Supabase Auth pero no en nuestra tabla (raro pero posible), lo creamos
+        // Por defecto le asignamos rol 'tech'
+        const [result]: any = await db.execute(
+          'INSERT INTO users (email, password, name, role, must_change_password) VALUES (?, ?, ?, ?, FALSE) RETURNING *',
+          [email, 'SUPABASE_AUTH_MANAGED', authData.user?.user_metadata?.name || 'Usuario Supabase', 'tech']
+        );
+        user = result[0];
       }
 
       const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, JWT_SECRET);
@@ -761,12 +810,39 @@ const startServer = async () => {
   app.post("/api/users", authenticate, async (req, res) => {
     if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const { email, password, name, role } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
+    
     try {
-      const [result]: any = await db.execute('INSERT INTO users (email, password, name, role, must_change_password) VALUES (?, ?, ?, ?, TRUE) RETURNING id', [email, hashedPassword, name, role]);
+      // 1. Crear usuario en Supabase Auth
+      // Usamos admin.createUser para que el administrador pueda crear usuarios directamente
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { name }
+      });
+
+      if (authError) {
+        // Si el error es que el usuario ya existe en Auth, intentamos seguir adelante
+        // para sincronizar con nuestra DB si es necesario, o devolvemos error.
+        if (authError.message.includes("already registered")) {
+          // Continuar para ver si está en nuestra DB
+        } else {
+          return res.status(400).json({ error: "Error en Supabase Auth: " + authError.message });
+        }
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const [result]: any = await db.execute(
+        'INSERT INTO users (email, password, name, role, must_change_password) VALUES (?, ?, ?, ?, TRUE) RETURNING id', 
+        [email, hashedPassword, name, role]
+      );
       res.json({ id: result[0].id });
     } catch (error: any) {
-      res.status(400).json({ error: "El correo electrónico ya está registrado" });
+      if (error.code === '23505') { // Unique violation en Postgres
+        res.status(400).json({ error: "El correo electrónico ya está registrado en la base de datos" });
+      } else {
+        res.status(400).json({ error: "Error al crear usuario: " + error.message });
+      }
     }
   });
 
@@ -792,9 +868,28 @@ const startServer = async () => {
     try {
       const [users]: any = await db.execute('SELECT * FROM users WHERE id = ?', [userId]);
       const user = users[0];
-      if (currentPassword && !(await bcrypt.compare(currentPassword, user.password))) {
+      
+      // 1. Actualizar en Supabase Auth
+      // Nota: Para actualizar la contraseña de otro usuario se requiere admin, 
+      // pero aquí el usuario está autenticado y cambia la suya propia.
+      // Sin embargo, como estamos en el servidor, podemos usar el cliente admin para forzarlo por email.
+      const { error: authError } = await supabase.auth.admin.updateUserById(
+        // Necesitaríamos el UUID de Supabase. Si no lo tenemos, lo buscamos por email.
+        await (async () => {
+          const { data } = await supabase.auth.admin.listUsers();
+          const foundUser = data.users.find((u: any) => u.email?.toLowerCase() === (user as any).email.toLowerCase());
+          return foundUser?.id;
+        })() || "",
+        { password: newPassword }
+      );
+
+      // No bloqueamos si falla Supabase Auth (podría ser un usuario antiguo no migrado)
+      // pero lo intentamos.
+
+      if (currentPassword && user.password !== 'SUPABASE_AUTH_MANAGED' && !(await bcrypt.compare(currentPassword, user.password))) {
         return res.status(400).json({ error: "La contraseña actual es incorrecta" });
       }
+      
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       await db.execute('UPDATE users SET password = ?, must_change_password = FALSE WHERE id = ?', [hashedPassword, userId]);
       res.json({ success: true });
