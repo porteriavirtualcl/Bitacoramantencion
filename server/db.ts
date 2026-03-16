@@ -110,9 +110,8 @@ export async function initDb() {
       }
 
       console.log("✅ Proceso de inicialización de base de datos completado.");
+      }
     }
-    }
-
 
     client.release();
   } catch (err: any) {
