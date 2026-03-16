@@ -243,14 +243,21 @@ async function seedUsers() {
             { email: 'supervisor01@porteriavirtual.cl', name: 'Supervisor Operador', role: 'operator', pass: 'operador123' }
         ];
         for (const u of defaultUsers) {
-            const [existing] = await db.execute('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [u.email]);
+            const [existing] = await db.execute('SELECT id, role FROM users WHERE LOWER(email) = LOWER(?)', [u.email]);
             if (existing.length === 0) {
-                console.log(`Seeding ${u.role} user: ${u.email}...`);
+                console.log(`Seeding missing user: ${u.email} as ${u.role}...`);
                 const hashedPassword = await bcrypt.hash(u.pass, 10);
                 await db.execute(`
           INSERT INTO users (email, password, name, role, must_change_password)
           VALUES (?, ?, ?, ?, FALSE)
         `, [u.email, hashedPassword, u.name, u.role]);
+            }
+            else {
+                // Aseguramos que el rol sea el correcto incluso si el usuario ya existía
+                if (existing[0].role !== u.role) {
+                    console.log(`Updating role for ${u.email}: ${existing[0].role} -> ${u.role}`);
+                    await db.execute('UPDATE users SET role = ? WHERE id = ?', [u.role, existing[0].id]);
+                }
             }
         }
         // Legacy admin check
@@ -317,7 +324,8 @@ const startServer = async () => {
             const [users] = await db.execute('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [email]);
             const user = users[0];
             if (!user) {
-                return res.status(401).json({ error: "Usuario no encontrado" });
+                console.warn(`[LOGIN FAIL] Intento de login con correo no registrado: ${email}`);
+                return res.status(401).json({ error: `El correo ${email} no está registrado en el sistema.` });
             }
             const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, JWT_SECRET);
             res.json({
