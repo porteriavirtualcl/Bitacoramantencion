@@ -12,23 +12,30 @@ const pool = new Pool({
 });
 
 export async function initDb() {
-  const dbUrl = process.env.DATABASE_URL;
+  const dbUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
   if (!dbUrl) {
-    console.error("❌ Error: Falta la variable de entorno DATABASE_URL.");
-    console.error("👉 TIP: Asegúrate de configurar DATABASE_URL en el panel de control de tu hosting (Hostinger, etc.)");
+    console.error("❌ Error: Falta la variable de entorno DATABASE_URL o DIRECT_URL.");
+    console.error("👉 TIP: Asegúrate de configurar las variables en el panel de control de tu hosting.");
     return;
   }
 
+  // Create a temporary pool for initialization using DIRECT_URL (bypassing pgbouncer)
+  const initPool = new Pool({
+    connectionString: dbUrl,
+    ssl: dbUrl.includes('supabase') ? {
+      rejectUnauthorized: false
+    } : false
+  });
+
   if (dbUrl.includes("[YOUR-PASSWORD]") || dbUrl.includes("[TU-PASSWORD]")) {
-    console.error("❌ Error: La DATABASE_URL todavía contiene un marcador de posición ([YOUR-PASSWORD]). Debes reemplazarlo con tu contraseña real en Settings -> Secrets.");
+    console.error("❌ Error: La URL todavía contiene un marcador de posición ([YOUR-PASSWORD]).");
     return;
   }
 
   try {
-    console.log("🔗 Intentando conectar a la base de datos...");
-    console.log("URL detectada:", dbUrl.substring(0, 20) + "...");
-    const client = await pool.connect();
-    console.log("📡 Conexión exitosa con Supabase (PostgreSQL).");
+    console.log("🔗 Intentando conectar a la base de datos para inicialización...");
+    const client = await initPool.connect();
+    console.log("📡 Conexión exitosa para inicialización.");
     
     // Check if tables exist by checking for 'users' table in public schema
     console.log("🔍 Verificando existencia de tablas...");
@@ -92,14 +99,13 @@ export async function initDb() {
 
       console.log("✅ Proceso de inicialización de base de datos completado.");
     }
-
+    
     client.release();
   } catch (err: any) {
-    console.error("❌ Error conectando a Supabase:", err.message);
-    if (err.message.includes("password authentication failed")) {
-      console.error("👉 TIP: Revisa que la contraseña en DATABASE_URL sea correcta y no contenga caracteres especiales sin codificar.");
-    }
+    console.error("❌ Error conectando a Supabase para inicialización:", err.message);
     throw err;
+  } finally {
+    await initPool.end();
   }
 }
 
