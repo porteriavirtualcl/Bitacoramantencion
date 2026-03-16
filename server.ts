@@ -288,9 +288,9 @@ const generateLogPDF = (log: any, details: any[]): Promise<Buffer> => {
 async function seedUsers() {
   try {
     const defaultUsers = [
-      { email: 'admin@pvirtual.cl', name: 'Admin Demo', role: 'admin', pass: 'admin123' },
-      { email: 'tecnico@pvirtual.cl', name: 'Técnico Demo', role: 'tech', pass: 'tech123' },
-      { email: 'operador@pvirtual.cl', name: 'Operador Demo', role: 'operator', pass: 'operador123' }
+      { email: 'contacto@porteriavirtual.cl', name: 'Administrador', role: 'admin', pass: 'admin123' },
+      { email: 'jose.bravo@porteriavirtual.cl', name: 'José Bravo', role: 'tech', pass: 'tech123' },
+      { email: 'supervisor01@porteriavirtual.cl', name: 'Supervisor Operador', role: 'operator', pass: 'operador123' }
     ];
 
     for (const u of defaultUsers) {

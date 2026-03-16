@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Hammer, Monitor, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../api';
 import { useAuth } from '../App';
 import { Logo } from '../components/Logo';
+import { supabase } from '../lib/supabase';
 
 export default function Login() {
   const [error, setError] = useState('');
@@ -12,6 +13,27 @@ export default function Login() {
   
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  // Escuchar el cambio de estado de autenticación de Supabase (para Google Login)
+  useEffect(() => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user?.email) {
+        setLoading('google');
+        try {
+          // Usamos el email que viene de Google para entrar a nuestra app
+          const { user, token } = await api.login({ email: session.user.email });
+          login(user, token);
+          
+          if (user.role === 'admin') navigate('/admin');
+          else if (user.role === 'operator') navigate('/operator');
+          else navigate('/tech');
+        } catch (err: any) {
+          setError(`No tienes acceso con este correo de Google: ${session.user.email}`);
+          setLoading(null);
+        }
+      }
+    });
+  }, [navigate]);
 
   const handleQuickLogin = async (email: string, roleName: string) => {
     setError('');
@@ -21,7 +43,6 @@ export default function Login() {
       const { user, token } = await api.login({ email });
       login(user, token);
       
-      // Admin a /admin, otros a /tech (Dashboard tecnico/operador)
       if (user.role === 'admin') navigate('/admin');
       else if (user.role === 'operator') navigate('/operator');
       else navigate('/tech');
@@ -32,11 +53,26 @@ export default function Login() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setError('');
+    setLoading('google');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    if (error) {
+      setError('Error al conectar con Google: ' + error.message);
+      setLoading(null);
+    }
+  };
+
   const users = [
     { 
       role: 'admin', 
       name: 'Administrador', 
-      email: 'admin@pvirtual.cl', 
+      email: 'contacto@porteriavirtual.cl', 
       icon: <Shield className="w-8 h-8" />,
       color: 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 hover:border-blue-200',
       description: 'Gestión completa de edificios, equipos y personal.'
@@ -44,7 +80,7 @@ export default function Login() {
     { 
       role: 'tech', 
       name: 'Técnico', 
-      email: 'tecnico@pvirtual.cl', 
+      email: 'jose.bravo@porteriavirtual.cl', 
       icon: <Hammer className="w-8 h-8" />,
       color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200',
       description: 'Realizar mantenciones y ver equipos asignados.'
@@ -52,7 +88,7 @@ export default function Login() {
     { 
       role: 'operator', 
       name: 'Operador', 
-      email: 'operador@pvirtual.cl', 
+      email: 'supervisor01@porteriavirtual.cl', 
       icon: <Monitor className="w-8 h-8" />,
       color: 'bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-100 hover:border-purple-200',
       description: 'Reportar incidencias y monitorear el estado.'
@@ -72,7 +108,7 @@ export default function Login() {
               <Logo className="w-20 h-20" />
             </div>
             <h1 className="text-3xl font-black text-slate-700 tracking-tight">portería <span className="text-primary">virtual</span></h1>
-            <p className="text-slate-500 text-sm mt-4 font-medium uppercase tracking-widest">Acceso Rápido por Rol</p>
+            <p className="text-slate-500 text-sm mt-4 font-medium uppercase tracking-widest">Acceso al Sistema</p>
           </div>
 
           <div className="px-8 pb-10 space-y-4">
@@ -86,6 +122,28 @@ export default function Login() {
                 <span className="font-medium">{error}</span>
               </motion.div>
             )}
+
+            <button
+              onClick={handleGoogleLogin}
+              disabled={loading !== null}
+              className="w-full flex items-center justify-center gap-3 p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-200 transition-all shadow-sm"
+            >
+              {loading === 'google' ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+              )}
+              {loading === 'google' ? 'Conectando...' : 'Entrar con Google'}
+            </button>
+
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-100"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-4 text-slate-400 font-bold tracking-widest">O entrar por rol</span>
+              </div>
+            </div>
 
             <div className="grid gap-4">
               {users.map((user) => (
@@ -113,8 +171,8 @@ export default function Login() {
           </div>
 
           <div className="px-10 py-6 bg-slate-50 border-t border-slate-100 text-center">
-            <p className="text-xs text-slate-400 font-medium">
-              © {new Date().getFullYear()} Portería Virtual. Modo Demostración Activado.
+            <p className="text-xs text-slate-400 font-medium tracking-wide">
+              © {new Date().getFullYear()} Portería Virtual. Chile.
             </p>
           </div>
         </div>
