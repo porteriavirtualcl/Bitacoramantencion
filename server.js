@@ -999,25 +999,30 @@ const startServer = async () => {
         console.error("Global error handler:", err);
         res.status(500).json({ error: "Internal server error" });
     });
+    console.log(`[ENV] NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`[DIR] __dirname: ${__dirname}`);
+    const distPath = path.join(__dirname, "dist");
+    console.log(`[DIR] distPath: ${distPath}`);
+
     if (process.env.NODE_ENV !== "production") {
+        console.log("🚀 Starting in DEVELOPMENT mode (Vite Middleware)");
         const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
         app.use(vite.middlewares);
-    }
-    else {
+    } else {
+        console.log("⚡ Starting in PRODUCTION mode (Static Serving)");
         // Serve static files from the dist directory
-        app.use(express.static(path.join(__dirname, "dist")));
+        app.use(express.static(distPath));
+        
         // Serve index.html for all other routes (SPA)
         app.get("*", (req, res, next) => {
-            // Don't intercept API routes
-            if (req.path.startsWith("/api/")) {
-                return next();
-            }
-            res.sendFile(path.join(__dirname, "dist", "index.html"));
+            if (req.path.startsWith("/api/")) return next();
+            res.sendFile(path.join(distPath, "index.html"));
         });
     }
+
     const PORT = Number(process.env.PORT) || 3000;
     app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running on http://localhost:${PORT}`);
+        console.log(`✅ Server running on http://localhost:${PORT}`);
     });
 };
 startServer();
