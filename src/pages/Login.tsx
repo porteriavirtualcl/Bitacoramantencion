@@ -1,154 +1,81 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { Shield, Hammer, Monitor, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../api';
 import { useAuth } from '../App';
-
 import { Logo } from '../components/Logo';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [mustChange, setMustChange] = useState(false);
-  const [tempToken, setTempToken] = useState('');
-  const [tempUser, setTempUser] = useState<any>(null);
+  const [loading, setLoading] = useState<string | null>(null);
   
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleQuickLogin = async (email: string, roleName: string) => {
     setError('');
-    setLoading(true);
+    setLoading(roleName);
 
     try {
-      const { user, token } = await api.login({ email, password });
-      
-      if (user.mustChangePassword) {
-        setMustChange(true);
-        setTempToken(token);
-        setTempUser(user);
-        setLoading(false);
-        return;
-      }
-
+      const { user, token } = await api.login({ email });
       login(user, token);
-      navigate(user.role === 'admin' ? '/admin' : '/tech');
-    } catch (err: any) {
-      setError(err.message);
-      setLoading(false);
-    }
-  };
-
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
-      return;
-    }
-    if (newPassword.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      // Temporarily set token to make the request
-      localStorage.setItem('token', tempToken);
-      await api.changePassword({ newPassword });
       
-      // Password changed, now login
-      login(tempUser, tempToken);
-      navigate(tempUser.role === 'admin' ? '/admin' : '/tech');
+      // Admin a /admin, otros a /tech (Dashboard tecnico/operador)
+      if (user.role === 'admin') navigate('/admin');
+      else if (user.role === 'operator') navigate('/operator');
+      else navigate('/tech');
+      
     } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      setError(`Error al ingresar como ${roleName}: ${err.message}`);
+      setLoading(null);
     }
   };
 
-  if (mustChange) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-[440px]">
-          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100">
-            <div className="p-10 text-center">
-              <h1 className="text-2xl font-black text-slate-700 tracking-tight">Cambiar Contraseña</h1>
-              <p className="text-slate-500 text-sm mt-4">Por seguridad, debes cambiar tu contraseña en tu primer inicio de sesión.</p>
-            </div>
-
-            <form onSubmit={handleChangePassword} className="px-10 pb-10 space-y-6">
-              {error && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-2xl flex items-center gap-3 text-sm border border-red-100">
-                  <AlertCircle size={20} />
-                  <span className="font-medium">{error}</span>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Nueva Contraseña</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                  <input 
-                    type="password" required
-                    value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary focus:outline-none transition-all text-slate-900 font-medium" 
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Confirmar Contraseña</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                  <input 
-                    type="password" required
-                    value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary focus:outline-none transition-all text-slate-900 font-medium" 
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-
-              <button 
-                type="submit" disabled={loading}
-                className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-3 mt-4"
-              >
-                {loading ? <Loader2 className="animate-spin" /> : 'Cambiar y Entrar'}
-              </button>
-            </form>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
+  const users = [
+    { 
+      role: 'admin', 
+      name: 'Administrador', 
+      email: 'admin@pvirtual.cl', 
+      icon: <Shield className="w-8 h-8" />,
+      color: 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 hover:border-blue-200',
+      description: 'Gestión completa de edificios, equipos y personal.'
+    },
+    { 
+      role: 'tech', 
+      name: 'Técnico', 
+      email: 'tecnico@pvirtual.cl', 
+      icon: <Hammer className="w-8 h-8" />,
+      color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200',
+      description: 'Realizar mantenciones y ver equipos asignados.'
+    },
+    { 
+      role: 'operator', 
+      name: 'Operador', 
+      email: 'operador@pvirtual.cl', 
+      icon: <Monitor className="w-8 h-8" />,
+      color: 'bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-100 hover:border-purple-200',
+      description: 'Reportar incidencias y monitorear el estado.'
+    }
+  ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[440px]"
+        className="w-full max-w-[500px]"
       >
         <div className="bg-white rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100">
-          <div className="p-10 text-center">
+          <div className="p-10 text-center pb-6">
             <div className="flex items-center justify-center mx-auto mb-4">
-              <Logo className="w-24 h-24" />
+              <Logo className="w-20 h-20" />
             </div>
             <h1 className="text-3xl font-black text-slate-700 tracking-tight">portería <span className="text-primary">virtual</span></h1>
-            <div className="h-1 w-12 bg-primary/20 mx-auto mt-4 rounded-full" />
-            <p className="text-slate-500 text-sm mt-6">Sistema de Gestión de Mantenciones</p>
+            <p className="text-slate-500 text-sm mt-4 font-medium uppercase tracking-widest">Acceso Rápido por Rol</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="px-10 pb-10 space-y-6">
+          <div className="px-8 pb-10 space-y-4">
             {error && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -160,47 +87,34 @@ export default function Login() {
               </motion.div>
             )}
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Correo Electrónico</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary focus:outline-none transition-all text-slate-900 font-medium" 
-                  placeholder="contacto@porteriavirtual.cl"
-                  required
-                />
-              </div>
+            <div className="grid gap-4">
+              {users.map((user) => (
+                <button
+                  key={user.role}
+                  disabled={loading !== null}
+                  onClick={() => handleQuickLogin(user.email, user.name)}
+                  className={`flex items-center gap-5 p-5 text-left transition-all border-2 rounded-2xl group relative ${user.color} ${loading === user.name ? 'opacity-80 scale-95' : 'hover:-translate-y-1'}`}
+                >
+                  <div className="p-3 bg-white rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
+                    {user.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg leading-tight">{user.name}</h3>
+                    <p className="text-xs opacity-70 mt-1 font-medium">{user.description}</p>
+                  </div>
+                  {loading === user.name && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/20 backdrop-blur-[1px] rounded-2xl">
+                      <Loader2 className="w-8 h-8 animate-spin" />
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Contraseña</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary focus:outline-none transition-all text-slate-900 font-medium" 
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-3 mt-4"
-            >
-              {loading ? <Loader2 className="animate-spin" /> : 'Acceder al Sistema'}
-            </button>
-          </form>
+          </div>
 
           <div className="px-10 py-6 bg-slate-50 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-400 font-medium">
-              © {new Date().getFullYear()} Portería Virtual. Todos los derechos reservados.
+              © {new Date().getFullYear()} Portería Virtual. Modo Demostración Activado.
             </p>
           </div>
         </div>

@@ -285,22 +285,36 @@ const generateLogPDF = (log: any, details: any[]): Promise<Buffer> => {
   });
 };
 
-async function seedAdmin() {
+async function seedUsers() {
   try {
-    const email = 'contacto@porteriavirtual.cl';
-    const [users]: any = await db.execute('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [email]);
+    const defaultUsers = [
+      { email: 'admin@pvirtual.cl', name: 'Admin Demo', role: 'admin', pass: 'admin123' },
+      { email: 'tecnico@pvirtual.cl', name: 'Técnico Demo', role: 'tech', pass: 'tech123' },
+      { email: 'operador@pvirtual.cl', name: 'Operador Demo', role: 'operator', pass: 'operador123' }
+    ];
 
-    if (users.length === 0) {
-      console.log("Seeding default admin user...");
-      const hashedPassword = await bcrypt.hash('admin123', 10);
-      await db.execute(`
-        INSERT INTO users (email, password, name, role, must_change_password)
-        VALUES (?, ?, ?, ?, TRUE)
-      `, [email, hashedPassword, 'Administrador', 'admin']);
-      console.log("Default admin user seeded successfully.");
-    } else {
-      console.log("Admin user already exists. Skipping password reset.");
+    for (const u of defaultUsers) {
+      const [existing]: any = await db.execute('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [u.email]);
+      if (existing.length === 0) {
+        console.log(`Seeding ${u.role} user: ${u.email}...`);
+        const hashedPassword = await bcrypt.hash(u.pass, 10);
+        await db.execute(`
+          INSERT INTO users (email, password, name, role, must_change_password)
+          VALUES (?, ?, ?, ?, FALSE)
+        `, [u.email, hashedPassword, u.name, u.role]);
+      }
     }
+    
+    // Legacy admin check
+    const legacyAdmin = 'contacto@porteriavirtual.cl';
+    const [legacy]: any = await db.execute('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [legacyAdmin]);
+    if (legacy.length === 0) {
+      const hp = await bcrypt.hash('admin123', 10);
+      await db.execute('INSERT INTO users (email, password, name, role, must_change_password) VALUES (?, ?, ?, ?, FALSE)', 
+        [legacyAdmin, hp, 'Administrador', 'admin']);
+    }
+
+    console.log("Seeding process complete.");
   } catch (err) {
     console.error("Unexpected error during seeding:", err);
   }
@@ -322,9 +336,9 @@ const startServer = async () => {
   console.log("Initializing PostgreSQL/Supabase...");
   try {
     await initDb();
-    console.log("Seeding admin user...");
-    await seedAdmin();
-    console.log("Admin seeding check complete.");
+    console.log("Seeding demo users...");
+    await seedUsers();
+    console.log("Seeding check complete.");
   } catch (dbErr) {
     console.error("Database initialization failed. Check your Supabase (PostgreSQL) credentials.", dbErr);
   }
@@ -354,55 +368,15 @@ const startServer = async () => {
   });
 
   app.post("/api/login", async (req, res) => {
-    const { email, password } = req.body;
+    const { email } = req.body;
     try {
-      // 1. Autenticar con Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (authError) {
-        // Si falla Supabase, intentamos verificar si el usuario existe en nuestra DB local
-        // Esto es para compatibilidad con usuarios creados antes de la migración
-        const [users]: any = await db.execute('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [email]);
-        const user = users[0];
-
-        if (!user) {
-          return res.status(401).json({ error: "Credenciales inválidas" });
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-          return res.status(401).json({ error: "Credenciales inválidas" });
-        }
-
-        // Si la contraseña es válida localmente, generamos el token
-        const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, JWT_SECRET);
-        return res.json({ 
-          token, 
-          user: { 
-            id: user.id, 
-            role: user.role, 
-            name: user.name, 
-            email: user.email,
-            mustChangePassword: user.must_change_password === true || user.must_change_password === 1
-          } 
-        });
-      }
-
-      // 2. Si Supabase Auth tuvo éxito, obtenemos los datos extendidos de nuestra tabla users
+      // Login Simplificado: Solo buscamos al usuario por email en nuestra DB.
+      // Bypass de contraseñas para facilitar el uso y demos.
       const [users]: any = await db.execute('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [email]);
-      let user = users[0];
+      const user = users[0];
 
       if (!user) {
-        // Si el usuario existe en Supabase Auth pero no en nuestra tabla (raro pero posible), lo creamos
-        // Por defecto le asignamos rol 'tech'
-        const [result]: any = await db.execute(
-          'INSERT INTO users (email, password, name, role, must_change_password) VALUES (?, ?, ?, ?, FALSE) RETURNING *',
-          [email, 'SUPABASE_AUTH_MANAGED', authData.user?.user_metadata?.name || 'Usuario Supabase', 'tech']
-        );
-        user = result[0];
+        return res.status(401).json({ error: "Usuario no encontrado" });
       }
 
       const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, JWT_SECRET);
@@ -413,12 +387,12 @@ const startServer = async () => {
           role: user.role, 
           name: user.name, 
           email: user.email,
-          mustChangePassword: user.must_change_password === true || user.must_change_password === 1
+          mustChangePassword: false
         } 
       });
     } catch (err: any) {
       console.error("Login error:", err);
-      res.status(500).json({ error: "Error interno del servidor: " + err.message });
+      res.status(500).json({ error: "Error interno: " + err.message });
     }
   });
 
@@ -1126,6 +1100,18 @@ const startServer = async () => {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);
+  } else {
+    // Serve static files from the dist directory
+    app.use(express.static(path.join(__dirname, "dist")));
+    
+    // Serve index.html for all other routes (SPA)
+    app.get("*", (req, res, next) => {
+      // Don't intercept API routes
+      if (req.path.startsWith("/api/")) {
+        return next();
+      }
+      res.sendFile(path.join(__dirname, "dist", "index.html"));
+    });
   }
 
   const PORT = Number(process.env.PORT) || 3000;

@@ -39,15 +39,27 @@ export async function initDb() {
     
     // Check if tables exist by checking for 'users' table in public schema
     console.log("🔍 Verificando existencia de tablas...");
+    const tableCheckResult = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'users'
+      );
+    `);
     
-    const schemaPath = path.join(process.cwd(), 'supabase_schema.sql');
-    if (!fs.existsSync(schemaPath)) {
-      console.error("❌ Error: No se encontró el archivo supabase_schema.sql en " + schemaPath);
+    const tablesExist = tableCheckResult.rows[0].exists;
+    
+    if (tablesExist) {
+       console.log("✅ Tablas detectadas. Omitiendo la ejecución del esquema completo para evitar sobrecarga.");
     } else {
-      const schema = fs.readFileSync(schemaPath, 'utf8');
-      console.log("📜 Ejecutando script de esquema (asegurando tablas)...");
-      
-      // 1. Renombrar tablas antiguas si existen
+      const schemaPath = path.join(process.cwd(), 'supabase_schema.sql');
+      if (!fs.existsSync(schemaPath)) {
+        console.error("❌ Error: No se encontró el archivo supabase_schema.sql en " + schemaPath);
+      } else {
+        const schema = fs.readFileSync(schemaPath, 'utf8');
+        console.log("📜 Ejecutando script de esquema (asegurando tablas)...");
+        
+        // 1. Renombrar tablas antiguas si existen
       const migrations = [
         "ALTER TABLE IF EXISTS equipment_types RENAME TO equipment",
         "ALTER TABLE IF EXISTS log_details RENAME COLUMN equipment_type_id TO equipment_id",
@@ -99,7 +111,9 @@ export async function initDb() {
 
       console.log("✅ Proceso de inicialización de base de datos completado.");
     }
-    
+    }
+
+
     client.release();
   } catch (err: any) {
     console.error("❌ Error conectando a Supabase para inicialización:", err.message);
