@@ -1012,15 +1012,15 @@ const startServer = async () => {
         app.use(vite.middlewares);
     }
     else {
-        // Serve static files from the dist directory
-        app.use(express.static(path.join(__dirname, "dist")));
+        // Serve static files from the dist_server directory
+        app.use(express.static(path.join(__dirname, "dist_server")));
         // Serve index.html for all other routes (SPA)
         app.get("*", (req, res, next) => {
             // Don't intercept API routes
             if (req.path.startsWith("/api/")) {
                 return next();
             }
-            res.sendFile(path.join(__dirname, "dist", "index.html"));
+            res.sendFile(path.join(__dirname, "dist_server", "index.html"));
         });
     }
     const PORT = Number(process.env.PORT) || 3000;
