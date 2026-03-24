@@ -126,8 +126,12 @@ export default {
   execute: async (sql: string, params: any[] = []) => {
     try {
       // Convert MySQL style "?" to PostgreSQL style "$1, $2..."
+      // Improved regex to avoid replacing "?" inside string literals
       let i = 1;
-      const pgSql = sql.replace(/\?/g, () => `$${i++}`);
+      const pgSql = sql.replace(/'[^']*'|\?/g, (match) => {
+        if (match === '?') return `$${i++}`;
+        return match;
+      });
       const result = await pool.query(pgSql, params);
       return [result.rows, result];
     } catch (err: any) {

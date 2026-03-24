@@ -86,7 +86,9 @@ export default function HistoryPage() {
                   </td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded text-[10px] font-black uppercase border ${
-                      log.log_type === 'emergencia' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-50 text-slate-600 border-slate-200'
+                      log.log_type === 'correctiva' ? 'bg-amber-50 text-amber-600 border-amber-200' : 
+                      log.log_type === 'emergencia' ? 'bg-red-50 text-red-600 border-red-200' : 
+                      'bg-slate-50 text-slate-600 border-slate-200'
                     }`}>
                       {log.log_type}
                     </span>
@@ -134,7 +136,10 @@ export default function HistoryPage() {
                       </button>
                     ) : (
                       <button 
-                        onClick={() => navigate(`/tech/maintenance/${log.id}`)}
+                        onClick={() => {
+                          const route = log.log_type === 'correctiva' ? 'corrective' : 'maintenance';
+                          navigate(`/tech/${route}/${log.id}`);
+                        }}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white hover:bg-amber-600 rounded-xl transition-all text-sm font-bold shadow-sm shadow-amber-500/20"
                       >
                         <Clock size={18} />

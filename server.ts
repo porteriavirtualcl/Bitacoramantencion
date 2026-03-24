@@ -354,6 +354,25 @@ const startServer = async () => {
     next();
   });
 
+  app.get("/api/health", async (req, res) => {
+    try {
+      await db.execute('SELECT 1');
+      res.json({ 
+        status: "ok", 
+        timestamp: new Date(), 
+        dbConnected: true,
+        environment: process.env.NODE_ENV || 'development'
+      });
+    } catch (err: any) {
+      res.json({ 
+        status: "ok", 
+        timestamp: new Date(), 
+        dbConnected: false, 
+        error: err.message 
+      });
+    }
+  });
+
   const authenticate = (req: any, res: any, next: any) => {
     const token = req.headers.authorization?.split(" ")[1] || req.query.token;
     if (!token) return res.status(401).json({ error: "Unauthorized" });
@@ -784,7 +803,12 @@ const startServer = async () => {
 
   app.get("/api/users/techs", authenticate, async (req, res) => {
     if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
-    const [techs]: any = await db.execute("SELECT id, email, name, role FROM users WHERE role IN ('tech', 'operator')");
+    const [techs]: any = await db.execute(`
+      SELECT u.id, u.email, u.name, u.role,
+      (SELECT COUNT(*) FROM tech_condos WHERE user_id = u.id) as "condoCount"
+      FROM users u 
+      WHERE u.role IN ('tech', 'operator')
+    `);
     res.json(techs);
   });
 

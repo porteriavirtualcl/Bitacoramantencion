@@ -27,17 +27,7 @@ export default function AdminTechs() {
         api.getCondos()
       ]);
       
-      // For each tech, fetch their assigned condos to show count
-      const techsWithCondos = await Promise.all(techData.map(async (tech: any) => {
-        try {
-          const assigned = await api.getTechCondos(tech.id);
-          return { ...tech, condoCount: assigned.length };
-        } catch (e) {
-          return { ...tech, condoCount: 0 };
-        }
-      }));
-      
-      setTechs(techsWithCondos);
+      setTechs(techData);
       setCondos(condoData);
     } catch (err) {
       console.error(err);
