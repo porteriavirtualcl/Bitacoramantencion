@@ -108,6 +108,10 @@ export const api = {
     return this.request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   },
 
+  deleteUser(id: number) {
+    return this.request(`/users/${id}`, { method: 'DELETE' });
+  },
+
   getTechCondos(userId: number) {
     return this.request(`/users/${userId}/condos`);
   },

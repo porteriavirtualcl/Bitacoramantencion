@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, X, Check, Loader2, Mail, User, Shield, Building2, Edit2 } from 'lucide-react';
+import { Users, Plus, X, Check, Loader2, Mail, User, Shield, Building2, Edit2, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 
@@ -53,6 +53,20 @@ export default function AdminTechs() {
       alert(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteTech = async (id: number, name: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar al usuario ${name}?`)) return;
+    
+    setLoading(true);
+    try {
+      await api.deleteUser(id);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -150,13 +164,22 @@ export default function AdminTechs() {
                     <p className="text-xs md:text-sm text-slate-500">{tech.email}</p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => openEditModal(tech)}
-                  className="p-2 text-slate-400 hover:text-primary transition-colors hover:bg-slate-50 rounded-lg md:opacity-0 group-hover:opacity-100"
-                  title="Editar Perfil"
-                >
-                  <Edit2 className="w-4 h-4 md:w-[18px] md:h-[18px]" />
-                </button>
+                <div className="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => openEditModal(tech)}
+                    className="p-2 text-slate-400 hover:text-primary transition-colors hover:bg-slate-50 rounded-lg"
+                    title="Editar Perfil"
+                  >
+                    <Edit2 className="w-4 h-4 md:w-[18px] md:h-[18px]" />
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteTech(tech.id, tech.name)}
+                    className="p-2 text-slate-400 hover:text-red-500 transition-colors hover:bg-red-50 rounded-lg"
+                    title="Eliminar Usuario"
+                  >
+                    <Trash2 className="w-4 h-4 md:w-[18px] md:h-[18px]" />
+                  </button>
+                </div>
               </div>
               
               <div className="flex items-center gap-2 mb-4 md:mb-6">

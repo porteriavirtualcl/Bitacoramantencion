@@ -867,6 +867,41 @@ const startServer = async () => {
     }
   });
 
+  app.delete("/api/users/:id", authenticate, async (req, res) => {
+    if ((req as any).user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const userId = req.params.id;
+    try {
+      // 1. Obtener email del usuario para intentar borrarlo de Supabase Auth
+      const [users]: any = await db.execute('SELECT email FROM users WHERE id = ?', [userId]);
+      if (users.length > 0) {
+        const email = users[0].email;
+        // 2. Borrar de Supabase Auth (intentarlo sin bloquear el proceso principal)
+        try {
+          const { data: authData } = await supabase.auth.admin.listUsers();
+          const authUsers = (authData as any)?.users || [];
+          const authUser = authUsers.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+          if (authUser) {
+            await supabase.auth.admin.deleteUser(authUser.id);
+            console.log(`Usuario ${email} eliminado de Supabase Auth`);
+          }
+        } catch (authErr) {
+          console.warn("No se pudo eliminar de Supabase Auth (posible falta de service role key):", authErr);
+        }
+      }
+
+      // 3. Borrar de la base de datos local
+      await db.execute('DELETE FROM users WHERE id = ?', [userId]);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      if (error.code === '23503') { // Foreign key violation
+        res.status(400).json({ error: "No se puede eliminar el usuario porque tiene registros asociados (bitácoras o incidencias)" });
+      } else {
+        res.status(500).json({ error: "Error al eliminar usuario en DB local: " + error.message });
+      }
+    }
+  });
+
   app.post("/api/users/change-password", authenticate, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     const userId = (req as any).user.id;
